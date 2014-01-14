@@ -76,7 +76,7 @@ def setup_udldap():
     subprocess.check_call(['/usr/bin/ud-replicate'])
     # Setup cron with a little variation
     minute = random.randint(0, 15)
-    with open('%s/templates/ud-replicate.tmpl' % basenode_dir, 'r') as t:
+    with open('%s/templates/ud-replicate.tmpl' % charm_dir, 'r') as t:
         tmpl = Template(t.read())
         tmpl.minute = minute
     # Overwrite the package supplied cron
