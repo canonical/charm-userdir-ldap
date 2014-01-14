@@ -1,0 +1,23 @@
+#!/bin/sh
+# this file is juju managed
+# dump ssh keys for import into userdir-ldap master
+
+HOST=$1
+FQDN=$(hostname --fqdn)
+IP=$(dig +short ${FQDN})
+
+echo
+echo
+echo "--- begin userdir-ldap keys ---"
+echo
+echo "- key for ud-host:"
+echo
+cat /etc/ssh/ssh_host_rsa_key.pub
+echo
+echo "- key for sshdist:"
+echo
+echo "command=\"rsync --server --sender -pr . /var/cache/userdir-ldap/hosts/${FQDN}\",no-port-forwarding,no-X11-forwarding,no-agent-forwarding,no-pty,from=\"${IP}\" $(cat /root/.ssh/id_rsa.pub)"
+echo
+echo "--- end userdir-ldap keys ---"
+echo
+echo

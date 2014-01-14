@@ -1,0 +1,36 @@
+options:
+  apt-repo-spec:
+    type: string
+    default: ""
+    description: >
+        Apt repository to install Hewlett-Packard package(s) from.
+  apt-repo-key:
+    type: string
+    default: ""
+    description: >
+        Apt repository key, typically needed for apt-repo-spec.
+  hp_hardware_args:
+    default: ""
+    type: string
+    description: >
+        Flags for check_hp_hardware.py, set to -s for single PSU.
+  hp-hw_servicegroups:
+    default: "prompt-critical"
+    type: string
+    description: >
+        Nagios servicegroup for hp-hardware check
+  lshw_servicegroups:
+    default: "prompt-critical"
+    type: string
+    description: >
+        Nagios servicegroup for lshw check
+  nagios_host_context:
+    default: "juju"
+    type: string
+    description: |
+      Used by the nrpe subordinate charms.
+      A string that will be prepended to instance name to set the host name
+      in nagios. So for instance the hostname would be something like:
+          juju-myservice-0
+      If you're running multiple environments with the same services in them
+      this allows you to differentiate between them.
