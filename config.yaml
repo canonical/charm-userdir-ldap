@@ -1,7 +1,7 @@
 options:
   apt-repo-spec:
     type: string
-    default: "http://archive.admin.canonical.com/ubuntu precise-cat main"
+    default: "deb http://archive.admin.canonical.com/ubuntu precise-cat main"
     description: >
         Apt repository to install userdir-ldap from.
   apt-repo-keys:
