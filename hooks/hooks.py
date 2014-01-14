@@ -43,7 +43,7 @@ charm_dir = os.path.dirname(hook_dir)
 """
 
 def setup_udldap():
-    configure_sources(True, apt_repo_src, apt_repo_key)
+    configure_sources(True, 'apt-repo-src', 'apt-repo-key')
     apt_install('userdir-ldap')
     if not os.path.exists('/root/.ssh'):
         os.makedirs('/root/.ssh')
