@@ -84,7 +84,8 @@ def setup_udldap():
         f.write(str(tmpl))
     # All done
     subprocess.check_call(['bzr', 'add', '/etc'])
-    subprocess.check_call(['bzr', 'ci', '/etc', '-m', '"', 'setup', 'ud-ldap', '"'])
+    subprocess.check_call(['bzr', 'ci', '/etc', '-m',
+        '"', 'setup', 'ud-ldap', '"'])
 
 @hooks.hook("install")
 def install():
