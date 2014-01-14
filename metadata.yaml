@@ -1,13 +1,11 @@
-name: ud-ldap
+name: userdir-ldap
 format: 2
 summary: Userdir-LDAP setup
 maintainer: Darren Spiteri <darren.spiteri@canonical.com>
 subordinate: true
 description: |
   Installs userdir-ldap and configures it.
-provides:
 requires:
   general-info:
     interface: juju-info
     scope: container
-

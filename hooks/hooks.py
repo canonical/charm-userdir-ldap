@@ -1,4 +1,4 @@
-##!/usr/bin/python
+#!/usr/bin/python
 import os
 import random
 import subprocess
@@ -12,14 +12,16 @@ local_copy = os.path.join(
 if os.path.exists(local_copy) and os.path.isdir(local_copy):
     sys.path.insert(0, local_copy)
 
-from charmhelpers.core.host import (
+from charmhelpers.fetch import (
+    add_source,
+    configure_sources,
     apt_install,
-    log,
 )
 
 from charmhelpers.core.hookenv import (
     Hooks,
     config,
+    log
 )
 
 hooks = Hooks()
@@ -41,10 +43,11 @@ charm_dir = os.path.dirname(hook_dir)
 """
 
 def setup_udldap():
+    configure_sources(True, apt_repo_src, apt_repo_key)
     apt_install('userdir-ldap')
     if not os.path.exists('/root/.ssh'):
         os.makedirs('/root/.ssh')
-    shutil.copyfile('%s/files/nsswitch_conf' % charm_dir,
+    shutil.copyfile('%s/files/nsswitch.conf' % charm_dir,
                         '/etc/nsswitch.conf')
     # adelie in hosts
     userdb = "91.189.90.139   userdb.internal"
