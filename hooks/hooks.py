@@ -14,7 +14,6 @@ if os.path.exists(local_copy) and os.path.isdir(local_copy):
     sys.path.insert(0, local_copy)
 
 from charmhelpers.fetch import (
-    add_source,
     configure_sources,
     apt_install,
 )
@@ -95,6 +94,9 @@ def setup_udldap():
         os.makedirs('/root/.ssh')
     shutil.copyfile('%s/files/nsswitch.conf' % charm_dir,
                     '/etc/nsswitch.conf')
+    shutil.copyfile("%s/files/snafflekeys" % charm_dir,
+                    "/usr/local/sbin/snafflekeys")
+    os.chmod("/usr/local/sbin/snafflekeys", 0755)
 
     update_hosts()
 
