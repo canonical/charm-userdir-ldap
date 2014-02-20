@@ -168,10 +168,14 @@ def copy_user_keys():
 
     for username in user_list:
         src_keyfile = os.path.join(pwd.getpwnam(username).pw_dir, ".ssh/authorized_keys")
-        dst_keyfile = "{}/{}".format(dst_keydir, username)
-        shutil.copyfile(src_keyfile, dst_keyfile)
-        os.chmod(dst_keyfile, 0444)
-        os.chown(dst_keyfile, 0, 0)
+        if os.path.isfile(src_keyfile):
+            log("Migrating authorized_keys for {}".format(username))
+            dst_keyfile = "{}/{}".format(dst_keydir, username)
+            shutil.copyfile(src_keyfile, dst_keyfile)
+            os.chmod(dst_keyfile, 0444)
+            os.chown(dst_keyfile, 0, 0)
+        else
+            log("No authorized_keys file to migrate for {}".format(username))
 
 @hooks.hook("install")
 def install():
