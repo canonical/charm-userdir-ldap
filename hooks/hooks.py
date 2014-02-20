@@ -157,23 +157,26 @@ def reconfigure_sshd():
     os.rename(sshd_config + ".new", sshd_config)
     service_reload("ssh")
 
-# Copy a users authorized_keys from ~/.ssh to our new location
-def copy_user_keys(username):
+# Copy users authorized_keys from ~/.ssh to our new location
+def copy_user_keys():
     dst_keydir = "/etc/ssh/user-authorized-keys"
     if not os.path.isdir(dst_keydir):
         os.mkdir(dst_keydir)
         os.chmod(dst_keydir, 0755)
         os.chown(dst_keydir, 0, 0)
-    src_keyfile = os.path.join(pwd.getpwnam(username).pw_dir, ".ssh/authorized_keys")
-    dst_keyfile = "{}/{}".format(dst_keydir, username)
-    shutil.copyfile(src_keyfile, dst_keyfile)
-    os.chmod(dst_keyfile, 0444)
-    os.chown(dst_keyfile, 0, 0)
+    user_list = str(config("users-to-migrate")).split()
+
+    for username in user_list:
+        src_keyfile = os.path.join(pwd.getpwnam(username).pw_dir, ".ssh/authorized_keys")
+        dst_keyfile = "{}/{}".format(dst_keydir, username)
+        shutil.copyfile(src_keyfile, dst_keyfile)
+        os.chmod(dst_keyfile, 0444)
+        os.chown(dst_keyfile, 0, 0)
 
 @hooks.hook("install")
 def install():
     setup_udldap()
-    copy_user_keys("ubuntu")
+    copy_user_keys()
     reconfigure_sshd()
 
 @hooks.hook("config-changed")

@@ -15,3 +15,7 @@ options:
     type: string
     default: "91.189.90.139"
     description: "IP address of the userdb host"
+  users-to-migrate:
+    type: string
+    default: "ubuntu"
+    description: "A space-separated list of usernames whose authorized_keys files should be migrated from ~/.ssh/authorized_keys to /etc/ssh/user-authorized-keys on install."
