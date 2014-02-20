@@ -97,6 +97,9 @@ def setup_udldap():
     shutil.copyfile("%s/files/snafflekeys" % charm_dir,
                     "/usr/local/sbin/snafflekeys")
     os.chmod("/usr/local/sbin/snafflekeys", 0755)
+    shutil.copyfile("%s/files/sudoers" % charm_dir,
+                    "/etc/sudoers")
+    os.chmod("/etc/sudoers", 0440)
 
     update_hosts()
 
