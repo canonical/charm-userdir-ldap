@@ -2,10 +2,16 @@ options:
   apt-repo-spec:
     type: string
     default: "deb http://archive.admin.canonical.com/ubuntu precise-cat main"
-    description: >
-        Apt repository to install userdir-ldap from.
+    description: "Apt repository to install userdir-ldap from."
   apt-repo-keys:
     type: string
     default: null
-    description: >
-        Apt repository key, typically needed for apt-repo-spec.
+    description: "Apt repository key, typically needed for apt-repo-spec."
+  userdb-host:
+    type: string
+    default: "userdb.internal"
+    description: "Name of the userdb host"
+  userdb-ip:
+    type: string
+    default: "91.189.90.139"
+    description: "IP address of the userdb host"
