@@ -174,7 +174,7 @@ def copy_user_keys():
             shutil.copyfile(src_keyfile, dst_keyfile)
             os.chmod(dst_keyfile, 0444)
             os.chown(dst_keyfile, 0, 0)
-        else
+        else:
             log("No authorized_keys file to migrate for {}".format(username))
 
 @hooks.hook("install")
