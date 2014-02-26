@@ -1,2 +1,9 @@
 Install the Canonical userdir-ldap package and configure it for use with
 Canonical infra.
+
+The default options should be fine for our normal use.  The only one
+you may want to pay attention to is "users-to-migrate", which is a
+space-separated list of usernames whose ssh keys will be copied from
+~/.ssh/authorized_keys to /etc/ssh/user-authorized_keys.  By default
+this is just the ubuntu user, as without this Juju will break, but
+if you need to add others, this is the place to do it.
