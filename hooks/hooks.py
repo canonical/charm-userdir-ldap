@@ -138,6 +138,7 @@ def setup_udldap():
     #subprocess.check_call(['bzr', 'ci', '/etc', '-m',
     #                       '"', 'setup', 'ud-ldap', '"'])
 
+
 # Change the sshd keyfile to use our locations
 # Note: this cannot be done before juju is setup (e.g. during MaaS
 #       install) because of bug #1270896.  Afterwards *should* be safe
@@ -157,6 +158,7 @@ def reconfigure_sshd():
     os.rename(sshd_config, sshd_config + ".orig")
     os.rename(sshd_config + ".new", sshd_config)
     service_reload("ssh")
+
 
 # Copy users authorized_keys from ~/.ssh to our new location
 def copy_user_keys():
@@ -178,11 +180,13 @@ def copy_user_keys():
         else:
             log("No authorized_keys file to migrate for {}".format(username))
 
+
 @hooks.hook("install")
 def install():
     setup_udldap()
     copy_user_keys()
     reconfigure_sshd()
+
 
 @hooks.hook("config-changed")
 def config_changed():
