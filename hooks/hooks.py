@@ -60,9 +60,16 @@ def update_hosts():
         for line in f:
             hosts.append(line)
 
+    # Are we in an LXC container?
+    # http://stackoverflow.com/questions/20010199/
+    with open('/proc/1/cgroup') as f:
+        in_lxc = any(line.split(':')[-1] != '/\n' for line in f)
+    hostname = os.uname()[1]
+
     # Create an updated version
     newhosts = []
     found_userdb = False
+    found_hostname = False
     for line in hosts:
         if userdb_host in line:
             found_userdb = True
@@ -71,11 +78,15 @@ def update_hosts():
                 newhosts.append("{} {}\n".format(userdb_ip, userdb_host))
             else:
                 newhosts.append(line)
+        elif hostname in line:
+            found_hostname = True
         else:
             newhosts.append(line)
     if not found_userdb:
         # Add it
         newhosts.append("{} {}\n".format(userdb_ip, userdb_host))
+    if in_lxc and not found_hostname:
+        newhosts.append("127.0.242.1 {}\n".format(hostname))
 
     # Write it out if anything changed
     if newhosts != hosts:
@@ -88,6 +99,11 @@ def update_hosts():
 
 
 def setup_udldap():
+    with open('/proc/1/cgroup') as f:
+        in_lxc = any(line.split(':')[-1] != '/\n' for line in f)
+    if in_lxc:
+        # The postinst for apt needs a working `hostname -f`
+        update_hosts()
     configure_sources(True, 'apt-repo-spec', 'apt-repo-keys')
     # Need to install/update openssh-server from *-cat for pam_mkhomedir.so.
     apt_install('hostname userdir-ldap openssh-server'.split())
@@ -117,7 +133,8 @@ def setup_udldap():
     # Generate a keypair if we don't already have one
     if not os.path.exists('/root/.ssh/id_rsa'):
         subprocess.check_call(['/usr/bin/ssh-keygen', '-q', '-t', 'rsa',
-                               '-b', '2048', '-N', '', '-f', '/root/.ssh/id_rsa'])
+                               '-b', '2048', '-N', '', '-f',
+                               '/root/.ssh/id_rsa'])
     # Force initial run
     # Continue on error (we may just have forgotten to add the host)
     try:
@@ -145,7 +162,8 @@ def setup_udldap():
 def reconfigure_sshd():
     sshd_config = "/etc/ssh/sshd_config"
     found_keyfile_line = False
-    our_keyfile_line = "AuthorizedKeysFile /etc/ssh/user-authorized-keys/%u /var/lib/misc/userkeys/%u\n"
+    our_keyfile_line = "AuthorizedKeysFile /etc/ssh/user-authorized-keys/%u" \
+        " /var/lib/misc/userkeys/%u\n"
     with open(sshd_config + ".new", "w") as n:
         with open(sshd_config, "r") as f:
             for line in f:
@@ -170,7 +188,8 @@ def copy_user_keys():
     user_list = str(config("users-to-migrate")).split()
 
     for username in user_list:
-        src_keyfile = os.path.join(pwd.getpwnam(username).pw_dir, ".ssh/authorized_keys")
+        src_keyfile = os.path.join(pwd.getpwnam(username).pw_dir,
+                                   ".ssh/authorized_keys")
         if os.path.isfile(src_keyfile):
             log("Migrating authorized_keys for {}".format(username))
             dst_keyfile = "{}/{}".format(dst_keydir, username)
