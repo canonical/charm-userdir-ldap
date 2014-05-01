@@ -90,7 +90,7 @@ def update_hosts():
 def setup_udldap():
     configure_sources(True, 'apt-repo-spec', 'apt-repo-keys')
     # Need to install/update openssh-server from *-cat for pam_mkhomedir.so.
-    apt_install('userdir-ldap openssh-server'.split())
+    apt_install('hostname userdir-ldap openssh-server'.split())
     if not os.path.exists('/root/.ssh'):
         os.makedirs('/root/.ssh')
     shutil.copyfile('%s/files/nsswitch.conf' % charm_dir,
