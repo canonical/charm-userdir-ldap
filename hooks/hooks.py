@@ -21,7 +21,8 @@ from charmhelpers.fetch import (
 from charmhelpers.core.hookenv import (
     Hooks,
     config,
-    log
+    log,
+    service_name,
 )
 
 from charmhelpers.core.host import (
@@ -55,55 +56,34 @@ def update_hosts():
 
     log("userdb_host: {} userdb_ip: {}".format(userdb_host, userdb_ip))
     # Read current hosts file
-    hosts = []
     with open(hosts_file, "r") as f:
-        for line in f:
-            hosts.append(line)
+        hosts = f.readlines()
+    # make a copy for later comparison
+    old_hosts = list(hosts)
 
-    # Are we in an LXC container?
-    # http://stackoverflow.com/questions/20010199/
-    with open('/proc/1/cgroup') as f:
-        in_lxc = any(line.split(':')[-1] != '/\n' for line in f)
     hostname = os.uname()[1]
 
-    # Create an updated version
-    newhosts = []
-    found_userdb = False
-    found_hostname = False
-    for line in hosts:
-        if userdb_host in line:
-            found_userdb = True
-            if not userdb_ip in line:
-                # Different IP - update it
-                newhosts.append("{} {}\n".format(userdb_ip, userdb_host))
-            else:
-                newhosts.append(line)
-        elif hostname in line:
-            found_hostname = True
-        else:
-            newhosts.append(line)
-    if not found_userdb:
-        # Add it
-        newhosts.append("{} {}\n".format(userdb_ip, userdb_host))
-    if in_lxc and not found_hostname:
-        newhosts.append("127.0.242.1 {}\n".format(hostname))
+    if not any(userdb_host in line for line in hosts):
+        hosts.append("{} {}\n".format(userdb_ip, userdb_host))
+
+    if not any(hostname in line for line in hosts):
+        servicename = service_name()
+        hosts.append("127.0.242.1 ")
+        hosts.append("{} {}\n".format(servicename, hostname))
 
     # Write it out if anything changed
-    if newhosts != hosts:
+    if old_hosts != hosts:
         log("Rewriting hosts file")
         with open(hosts_file + ".new", 'w') as f:
-            for line in newhosts:
+            for line in hosts:
                 f.write(line)
         os.rename(hosts_file, hosts_file + ".orig")
         os.rename(hosts_file + ".new", hosts_file)
 
 
 def setup_udldap():
-    with open('/proc/1/cgroup') as f:
-        in_lxc = any(line.split(':')[-1] != '/\n' for line in f)
-    if in_lxc:
-        # The postinst for apt needs a working `hostname -f`
-        update_hosts()
+    # The postinst for apt/userdir-ldap needs a working `hostname -f`
+    update_hosts()
     configure_sources(True, 'apt-repo-spec', 'apt-repo-keys')
     # Need to install/update openssh-server from *-cat for pam_mkhomedir.so.
     apt_install('hostname userdir-ldap openssh-server'.split())
@@ -117,8 +97,6 @@ def setup_udldap():
     shutil.copyfile("%s/files/sudoers" % charm_dir,
                     "/etc/sudoers")
     os.chmod("/etc/sudoers", 0440)
-
-    update_hosts()
 
     # If we don't assert these symlinks in /etc, ud-replicate
     # will write to them for us and trip up the local changes check.
