@@ -68,16 +68,16 @@ def update_hosts():
     newhosts = []
     for line in hosts:
         if userdb_host in line:
-            next
-        if hostname in line:
-            next
+            continue
+        elif hostname in line:
+            continue
         else:
             newhosts.append(line)
     # Add entry for userdb
     newhosts.append("{} {}\n".format(userdb_ip, userdb_host))
     # Add entry for hostname
     servicename = service_name()
-    newhosts.append("127.0.1.1 ")
+    newhosts.append("127.0.242.1 ")
     if domain:
         newhosts.append("{}.{} ".format(servicename, domain))
     newhosts.append("{} {}\n".format(servicename, hostname))
