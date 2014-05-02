@@ -66,31 +66,21 @@ def update_hosts():
 
     # Create an updated version
     newhosts = []
-    found_userdb = False
-    found_hostname = False
     for line in hosts:
         if userdb_host in line:
-            found_userdb = True
-            if not userdb_ip in line:
-                # Different IP - update it
-                newhosts.append("{} {}\n".format(userdb_ip, userdb_host))
-            else:
-                newhosts.append(line)
-        elif hostname in line:
-            found_hostname = True
+            next
+        if hostname in line:
+            next
         else:
             newhosts.append(line)
-    if not found_userdb:
-        # Add it
-        newhosts.append("# Added by userdir-ldap\n")
-        newhosts.append("{} {}\n".format(userdb_ip, userdb_host))
-    if not found_hostname:
-        service_name = hookenv.service_name()
-        newhosts.append("# Added by userdir-ldap\n")
-        newhosts.append("127.0.1.1 ")
-        if domain:
-            newhosts.append("{}.{} ".format(service_name, domain))
-        newhosts.append("{} {}\n".format(service_name, hostname))
+    # Add entry for userdb
+    newhosts.append("{} {}\n".format(userdb_ip, userdb_host))
+    # Add entry for hostname
+    service_name = hookenv.service_name()
+    newhosts.append("127.0.1.1 ")
+    if domain:
+        newhosts.append("{}.{} ".format(service_name, domain))
+    newhosts.append("{} {}\n".format(service_name, hostname))
 
     # Write it out if anything changed
     if newhosts != hosts:
