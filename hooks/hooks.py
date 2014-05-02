@@ -76,11 +76,11 @@ def update_hosts():
     # Add entry for userdb
     newhosts.append("{} {}\n".format(userdb_ip, userdb_host))
     # Add entry for hostname
-    service_name = hookenv.service_name()
+    servicename = service_name()
     newhosts.append("127.0.1.1 ")
     if domain:
-        newhosts.append("{}.{} ".format(service_name, domain))
-    newhosts.append("{} {}\n".format(service_name, hostname))
+        newhosts.append("{}.{} ".format(servicename, domain))
+    newhosts.append("{} {}\n".format(servicename, hostname))
 
     # Write it out if anything changed
     if newhosts != hosts:
