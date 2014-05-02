@@ -21,7 +21,8 @@ from charmhelpers.fetch import (
 from charmhelpers.core.hookenv import (
     Hooks,
     config,
-    log
+    log,
+    service_name,
 )
 
 from charmhelpers.core.host import (
@@ -51,6 +52,7 @@ def update_hosts():
     # Add the userdb host to /etc/hosts
     userdb_host = str(config("userdb-host"))
     userdb_ip = str(config("userdb-ip"))
+    domain = str(config("domain"))
     hosts_file = "/etc/hosts"
 
     log("userdb_host: {} userdb_ip: {}".format(userdb_host, userdb_ip))
@@ -60,10 +62,6 @@ def update_hosts():
         for line in f:
             hosts.append(line)
 
-    # Are we in an LXC container?
-    # http://stackoverflow.com/questions/20010199/
-    with open('/proc/1/cgroup') as f:
-        in_lxc = any(line.split(':')[-1] != '/\n' for line in f)
     hostname = os.uname()[1]
 
     # Create an updated version
@@ -84,9 +82,15 @@ def update_hosts():
             newhosts.append(line)
     if not found_userdb:
         # Add it
+        newhosts.append("# Added by userdir-ldap\n")
         newhosts.append("{} {}\n".format(userdb_ip, userdb_host))
-    if in_lxc and not found_hostname:
-        newhosts.append("127.0.242.1 {}\n".format(hostname))
+    if not found_hostname:
+        service_name = hookenv.service_name()
+        newhosts.append("# Added by userdir-ldap\n")
+        newhosts.append("127.0.1.1 ")
+        if domain:
+            newhosts.append("{}.{} ".format(service_name, domain))
+        newhosts.append("{} {}\n".format(service_name, hostname))
 
     # Write it out if anything changed
     if newhosts != hosts:
@@ -99,11 +103,8 @@ def update_hosts():
 
 
 def setup_udldap():
-    with open('/proc/1/cgroup') as f:
-        in_lxc = any(line.split(':')[-1] != '/\n' for line in f)
-    if in_lxc:
-        # The postinst for apt needs a working `hostname -f`
-        update_hosts()
+    # The postinst for apt/userdir-ldap needs a working `hostname -f`
+    update_hosts()
     configure_sources(True, 'apt-repo-spec', 'apt-repo-keys')
     # Need to install/update openssh-server from *-cat for pam_mkhomedir.so.
     apt_install('hostname userdir-ldap openssh-server'.split())
@@ -117,8 +118,6 @@ def setup_udldap():
     shutil.copyfile("%s/files/sudoers" % charm_dir,
                     "/etc/sudoers")
     os.chmod("/etc/sudoers", 0440)
-
-    update_hosts()
 
     # If we don't assert these symlinks in /etc, ud-replicate
     # will write to them for us and trip up the local changes check.
