@@ -19,7 +19,3 @@ options:
     type: string
     default: "ubuntu"
     description: "A space-separated list of usernames whose authorized_keys files should be migrated from ~/.ssh/authorized_keys to /etc/ssh/user-authorized-keys on install."
-  domain:
-    type: string
-    default: ""
-    description: "Domain for which hosts are in"

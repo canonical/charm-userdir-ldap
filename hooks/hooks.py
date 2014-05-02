@@ -52,7 +52,6 @@ def update_hosts():
     # Add the userdb host to /etc/hosts
     userdb_host = str(config("userdb-host"))
     userdb_ip = str(config("userdb-ip"))
-    domain = str(config("domain"))
     hosts_file = "/etc/hosts"
 
     log("userdb_host: {} userdb_ip: {}".format(userdb_host, userdb_ip))
@@ -70,8 +69,6 @@ def update_hosts():
     if not any(hostname in line for line in hosts):
         servicename = service_name()
         hosts.append("127.0.242.1 ")
-        if domain:
-            hosts.append("{}.{} ".format(servicename, domain))
         hosts.append("{} {}\n".format(servicename, hostname))
 
     # Write it out if anything changed
