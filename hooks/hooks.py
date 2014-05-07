@@ -22,7 +22,6 @@ from charmhelpers.core.hookenv import (
     Hooks,
     config,
     log,
-    service_name,
 )
 
 from charmhelpers.core.host import (
@@ -67,9 +66,7 @@ def update_hosts():
         hosts.append("{} {}\n".format(userdb_ip, userdb_host))
 
     if not any(hostname in line for line in hosts):
-        servicename = service_name()
-        hosts.append("127.0.242.1 ")
-        hosts.append("{} {}\n".format(servicename, hostname))
+        hosts.append("127.0.242.1 {}\n".format(hostname))
 
     # Write it out if anything changed
     if old_hosts != hosts:
