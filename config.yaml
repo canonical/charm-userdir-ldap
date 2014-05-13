@@ -15,6 +15,9 @@ options:
     type: string
     default: "91.189.90.139"
     description: "IP address of the userdb host"
+  userdb-known-hosts:
+    type: string
+    description: "A (possibly multiple-line) string of known_hosts entries to seed the userdb trust during install.  If none specified, ssh-keyscan will be used."
   users-to-migrate:
     type: string
     default: "ubuntu"
