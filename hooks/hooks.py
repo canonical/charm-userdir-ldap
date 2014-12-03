@@ -195,7 +195,7 @@ def install():
 
 @hooks.hook("config-changed")
 def config_changed():
-    update_hosts()
+    setup_udldap()
 
 if __name__ == "__main__":
     hooks.execute(sys.argv)
