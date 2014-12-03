@@ -123,10 +123,16 @@ def setup_udldap():
         log("Initial ud-replicate run failed")
 
     # Setup cron with a little variation
-    minute = random.randint(0, 15)
+    minute1 = random.randint(0, 15)
+    minute2 = minute1 + 15
+    minute3 = minute1 + 30
+    minute4 = minute1 + 45
     with open('%s/templates/ud-replicate.tmpl' % charm_dir, 'r') as t:
         tmpl = Template(t.read())
-        tmpl.minute = minute
+        tmpl.minute1 = minute1
+        tmpl.minute2 = minute2
+        tmpl.minute3 = minute3
+        tmpl.minute4 = minute4
     # Overwrite the package supplied cron
     with open('/etc/cron.d/ud-replicate', 'w') as f:
         f.write(str(tmpl))
