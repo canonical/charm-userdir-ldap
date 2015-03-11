@@ -26,6 +26,7 @@ from charmhelpers.core.hookenv import (
 
 from charmhelpers.core.host import (
     service_reload,
+    write_file,
 )
 
 hooks = Hooks()
@@ -85,7 +86,7 @@ def setup_udldap():
     # Need to install/update openssh-server from *-cat for pam_mkhomedir.so.
     apt_install('hostname userdir-ldap openssh-server'.split())
     if not os.path.exists('/root/.ssh'):
-        os.makedirs('/root/.ssh')
+        os.makedirs('/root/.ssh', mode=0700)
     shutil.copyfile('%s/files/nsswitch.conf' % charm_dir,
                     '/etc/nsswitch.conf')
     shutil.copyfile("%s/files/snafflekeys" % charm_dir,
@@ -110,6 +111,26 @@ def setup_udldap():
     else:
         os.system('/usr/bin/ssh-keyscan -t rsa userdb.internal \
             >> /root/.ssh/known_hosts')
+
+    # Install the supplied private key, if any.  And extract the
+    # public key, because it'd be weird to not have it alongside.
+    if config('root-id-rsa'):
+        write_file(
+            path='/root/.ssh/id_rsa',
+            content=str(config('root-id-rsa')),
+            perms=0600,
+        )
+        root_id_rsa_pub = subprocess.check_output([
+            '/usr/bin/ssh-keygen',
+            '-f', '/root/.ssh/id_rsa',
+            '-y',
+        ])
+        write_file(
+            path='/root/.ssh/id_rsa.pub',
+            content=root_id_rsa_pub,
+            perms=0600,
+        )
+        
     # Generate a keypair if we don't already have one
     if not os.path.exists('/root/.ssh/id_rsa'):
         subprocess.check_call(['/usr/bin/ssh-keygen', '-q', '-t', 'rsa',
