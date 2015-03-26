@@ -162,6 +162,25 @@ def setup_udldap():
     #subprocess.check_call(['bzr', 'ci', '/etc', '-m',
     #                       '"', 'setup', 'ud-ldap', '"'])
 
+    # handle template userdir-ldap hosts
+    template_hostname = config('template-hostname')
+    if template_hostname:
+        thishost = readlink('/var/lib/misc/thishost')
+        linksrc = os.path.join('/var/lib/misc', thishost)
+        if not os.path.exists(linksrc):
+            log("setup_udldap: symlinking {} to {}".format(
+                linksrc, template_hostname))
+            os.symlink(linksrc, template_hostname)
+        else:
+            if os.path.islink(linksrc):
+                log("setup_udldap: replacing {} with a symlink to {}".format(
+                    linksrc, template_hostname))
+                os.unlink(linksrc)
+                os.symlink(linksrc, template_hostname)
+            else:
+                log("setup_udldap: {} exists but is not a symlink; "
+                    "doing nothing".format(linksrc))
+            
 
 # Change the sshd keyfile to use our locations
 # Note: this cannot be done before juju is setup (e.g. during MaaS
