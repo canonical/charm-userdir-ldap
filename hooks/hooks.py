@@ -165,7 +165,7 @@ def setup_udldap():
     # handle template userdir-ldap hosts
     template_hostname = config('template-hostname')
     if template_hostname:
-        thishost = readlink('/var/lib/misc/thishost')
+        thishost = os.readlink('/var/lib/misc/thishost')
         linksrc = os.path.join('/var/lib/misc', thishost)
         if not os.path.exists(linksrc):
             log("setup_udldap: symlinking {} to {}".format(
