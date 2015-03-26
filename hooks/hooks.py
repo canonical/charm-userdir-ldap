@@ -166,20 +166,20 @@ def setup_udldap():
     template_hostname = config('template-hostname')
     if template_hostname:
         thishost = os.readlink('/var/lib/misc/thishost')
-        linksrc = os.path.join('/var/lib/misc', thishost)
-        if not os.path.exists(linksrc):
+        linkdst = os.path.join('/var/lib/misc', thishost)
+        if not os.path.exists(linkdst):
             log("setup_udldap: symlinking {} to {}".format(
-                linksrc, template_hostname))
-            os.symlink(linksrc, template_hostname)
+                linkdst, template_hostname))
+            os.symlink(template_hostname, linkdst)
         else:
-            if os.path.islink(linksrc):
+            if os.path.islink(linkdst):
                 log("setup_udldap: replacing {} with a symlink to {}".format(
-                    linksrc, template_hostname))
-                os.unlink(linksrc)
-                os.symlink(linksrc, template_hostname)
+                    linkdst, template_hostname))
+                os.unlink(linkdst)
+                os.symlink(template_hostname, linkdst)
             else:
                 log("setup_udldap: {} exists but is not a symlink; "
-                    "doing nothing".format(linksrc))
+                    "doing nothing".format(linkdst))
             
 
 # Change the sshd keyfile to use our locations
