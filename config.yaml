@@ -7,6 +7,14 @@ options:
     type: string
     default: null
     description: "Apt repository key, typically needed for apt-repo-spec."
+  root-id-rsa:
+    type: string
+    default: null
+    description: "An openssh-format RSA private key with no passphrase.  (This option is a trapdoor; setting it back to null has no real effect.)"
+  template-hostname:
+    type: string
+    default: null
+    description: "If the files rsynced from sshdist don't match our hostname, create a symlink to bridge the gap from /var/lib/misc/thishost."
   userdb-host:
     type: string
     default: "userdb.internal"
