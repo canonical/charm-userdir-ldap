@@ -167,7 +167,7 @@ def setup_udldap():
     if template_hostname:
         thishost = os.readlink('/var/lib/misc/thishost')
         linkdst = os.path.join('/var/lib/misc', thishost)
-        if not os.path.exists(linkdst):
+        if not os.path.lexists(linkdst):
             log("setup_udldap: symlinking {} to {}".format(
                 linkdst, template_hostname))
             os.symlink(template_hostname, linkdst)
