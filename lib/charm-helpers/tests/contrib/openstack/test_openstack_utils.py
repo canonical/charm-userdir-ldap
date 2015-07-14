@@ -1,13 +1,21 @@
+import io
 import os
 import subprocess
 import unittest
-
 from copy import copy
 from testtools import TestCase
 from mock import MagicMock, patch, call
 
 import charmhelpers.contrib.openstack.utils as openstack
 
+import six
+
+if not six.PY3:
+    builtin_open = '__builtin__.open'
+    builtin_import = '__builtin__.__import__'
+else:
+    builtin_open = 'builtins.open'
+    builtin_import = 'builtins.__import__'
 
 # mocked return of openstack.lsb_release()
 FAKE_RELEASE = {
@@ -82,8 +90,18 @@ UCA_SOURCES = [
     ('cloud:precise-icehouse/updates', url + ' precise-updates/icehouse main'),
 ]
 
+openstack_origin_git = \
+    """repositories:
+         - {name: requirements,
+            repository: 'git://git.openstack.org/openstack/requirements',
+            branch: stable/juno}
+         - {name: keystone,
+            repository: 'git://git.openstack.org/openstack/keystone',
+            branch: stable/juno}"""
 
 # Mock python-dnspython resolver used by get_host_ip()
+
+
 class FakeAnswer(object):
     def __init__(self, ip):
         self.ip = ip
@@ -97,7 +115,10 @@ class FakeResolver(object):
         self.ip = ip
 
     def query(self, hostname, query_type):
-        return [FakeAnswer(self.ip)]
+        if self.ip == '':
+            return []
+        else:
+            return [FakeAnswer(self.ip)]
 
 
 class FakeReverse(object):
@@ -105,12 +126,17 @@ class FakeReverse(object):
         return '156.94.189.91.in-addr.arpa'
 
 
+class FakeDNSName(object):
+    def __init__(self, dnsname):
+        pass
+
+
 class FakeDNS(object):
     def __init__(self, ip):
         self.resolver = FakeResolver(ip)
         self.reversename = FakeReverse()
         self.name = MagicMock()
-        self.name.Name = basestring
+        self.name.Name = FakeDNSName
 
 
 class OpenStackHelpersTestCase(TestCase):
@@ -160,6 +186,8 @@ class OpenStackHelpersTestCase(TestCase):
                'precise-havana main')
         self.assertEquals(openstack.get_os_codename_install_source(src),
                           'havana')
+        self.assertEquals(openstack.get_os_codename_install_source(None),
+                          '')
 
     @patch.object(openstack, 'get_os_version_codename')
     @patch.object(openstack, 'get_os_codename_install_source')
@@ -211,7 +239,7 @@ class OpenStackHelpersTestCase(TestCase):
         '''Test deriving OpenStack codename from an installed package'''
         with patch('apt_pkg.Cache') as cache:
             cache.return_value = self._apt_cache()
-            for pkg, vers in FAKE_REPO.iteritems():
+            for pkg, vers in six.iteritems(FAKE_REPO):
                 # test fake repo for all "installed" packages
                 if pkg.startswith('bad-'):
                     continue
@@ -280,7 +308,7 @@ class OpenStackHelpersTestCase(TestCase):
         '''Test deriving OpenStack version from an installed package'''
         with patch('apt_pkg.Cache') as cache:
             cache.return_value = self._apt_cache()
-            for pkg, vers in FAKE_REPO.iteritems():
+            for pkg, vers in six.iteritems(FAKE_REPO):
                 if pkg.startswith('bad-'):
                     continue
                 if 'pkg_vers' not in vers:
@@ -343,12 +371,12 @@ class OpenStackHelpersTestCase(TestCase):
             ex_cmd = ['add-apt-repository', '-y', 'ppa:gandelman-a/openstack']
             mock.assert_called_with(ex_cmd)
 
-    @patch('__builtin__.open')
+    @patch(builtin_open)
     @patch('charmhelpers.contrib.openstack.utils.juju_log')
     @patch('charmhelpers.contrib.openstack.utils.import_key')
     def test_configure_install_source_deb_url(self, _import, _log, _open):
         '''Test configuring installation source from deb repo url'''
-        _file = MagicMock(spec=file)
+        _file = MagicMock(spec=io.FileIO)
         _open.return_value = _file
         src = ('deb http://ubuntu-cloud.archive.canonical.com/ubuntu '
                'precise-havana main|KEYID')
@@ -361,12 +389,12 @@ class OpenStackHelpersTestCase(TestCase):
         _file.__enter__().write.assert_called_with(src)
 
     @patch('charmhelpers.contrib.openstack.utils.lsb_release')
-    @patch('__builtin__.open')
+    @patch(builtin_open)
     @patch('charmhelpers.contrib.openstack.utils.juju_log')
     def test_configure_install_source_distro_proposed(self, _log, _open, _lsb):
         '''Test configuring installation source from deb repo url'''
         _lsb.return_value = FAKE_RELEASE
-        _file = MagicMock(spec=file)
+        _file = MagicMock(spec=io.FileIO)
         _open.return_value = _file
         openstack.configure_installation_source('distro-proposed')
         src = ('deb http://archive.ubuntu.com/ubuntu/ precise-proposed '
@@ -391,13 +419,13 @@ class OpenStackHelpersTestCase(TestCase):
                    'ppa:ubuntu-cloud-archive/folsom-staging']
             _subp.assert_called_with(cmd)
 
-    @patch('__builtin__.open')
+    @patch(builtin_open)
     @patch('charmhelpers.contrib.openstack.utils.apt_install')
     @patch('charmhelpers.contrib.openstack.utils.lsb_release')
     def test_configure_install_source_uca_repos(self, _lsb, _install, _open):
         '''Test configuring installation source from UCA sources'''
         _lsb.return_value = FAKE_RELEASE
-        _file = MagicMock(spec=file)
+        _file = MagicMock(spec=io.FileIO)
         _open.return_value = _file
         for src, url in UCA_SOURCES:
             openstack.configure_installation_source(src)
@@ -444,13 +472,13 @@ class OpenStackHelpersTestCase(TestCase):
     @patch('os.mkdir')
     @patch('os.path.exists')
     @patch('charmhelpers.contrib.openstack.utils.charm_dir')
-    @patch('__builtin__.open')
+    @patch(builtin_open)
     def test_save_scriptrc(self, _open, _charm_dir, _exists, _mkdir):
         '''Test generation of scriptrc from environment'''
         scriptrc = ['#!/bin/bash\n',
                     'export setting1=foo\n',
                     'export setting2=bar\n']
-        _file = MagicMock(spec=file)
+        _file = MagicMock(spec=io.FileIO)
         _open.return_value = _file
         _charm_dir.return_value = '/var/lib/juju/units/testing-foo-0/charm'
         _exists.return_value = False
@@ -565,38 +593,236 @@ class OpenStackHelpersTestCase(TestCase):
         openstack.clean_storage('/dev/vdb')
         zap_disk.assert_called_with('/dev/vdb')
 
-    def test_is_ip(self):
-        self.assertTrue(openstack.is_ip('10.0.0.1'))
-        self.assertFalse(openstack.is_ip('www.ubuntu.com'))
+    @patch('os.path.isfile')
+    @patch(builtin_open)
+    def test_get_matchmaker_map(self, _open, _isfile):
+        _isfile.return_value = True
+        mm_data = """
+        {
+           "cinder-scheduler": [
+             "juju-t-machine-4"
+            ]
+        }
+        """
+        fh = _open.return_value.__enter__.return_value
+        fh.read.return_value = mm_data
+        self.assertEqual(
+            openstack.get_matchmaker_map(),
+            {'cinder-scheduler': ['juju-t-machine-4']}
+        )
 
-    @patch.object(openstack, 'apt_install')
-    def test_get_host_ip_with_hostname(self, apt_install):
-        fake_dns = FakeDNS('10.0.0.1')
-        with patch('__builtin__.__import__', side_effect=[fake_dns]):
-            ip = openstack.get_host_ip('www.ubuntu.com')
-        self.assertEquals(ip, '10.0.0.1')
+    @patch('os.path.isfile')
+    @patch(builtin_open)
+    def test_get_matchmaker_map_nofile(self, _open, _isfile):
+        _isfile.return_value = False
+        self.assertEqual(
+            openstack.get_matchmaker_map(),
+            {}
+        )
 
-    @patch.object(openstack, 'apt_install')
-    def test_get_host_ip_with_ip(self, apt_install):
-        fake_dns = FakeDNS('5.5.5.5')
-        with patch('__builtin__.__import__', side_effect=[fake_dns]):
-            ip = openstack.get_host_ip('4.2.2.1')
-        self.assertEquals(ip, '4.2.2.1')
+    @patch.object(openstack, 'config')
+    def test_git_install_requested_none(self, config):
+        config.return_value = None
+        result = openstack.git_install_requested()
+        self.assertEquals(result, False)
 
-    @patch.object(openstack, 'apt_install')
-    def test_get_hostname_with_ip(self, apt_install):
-        fake_dns = FakeDNS('www.ubuntu.com')
-        with patch('__builtin__.__import__', side_effect=[fake_dns, fake_dns]):
-            hn = openstack.get_hostname('4.2.2.1')
-        self.assertEquals(hn, 'www.ubuntu.com')
+    @patch.object(openstack, 'config')
+    def test_git_install_requested_not_none(self, config):
+        config.return_value = openstack_origin_git
+        result = openstack.git_install_requested()
+        self.assertEquals(result, True)
 
-    @patch.object(openstack, 'apt_install')
-    def test_get_hostname_with_hostname(self, apt_install):
-        fake_dns = FakeDNS('5.5.5.5')
-        with patch('__builtin__.__import__', side_effect=[fake_dns]):
-            hn = openstack.get_hostname('www.ubuntu.com')
-        self.assertEquals(hn, 'www.ubuntu.com')
+    def _test_key_error(self, os_origin_git, key, error_out):
+        try:
+            openstack.git_clone_and_install(os_origin_git, 'keystone')
+        except KeyError:
+            # KeyError expected because _git_ensure_key_exists() doesn't exit
+            # when mocked.
+            pass
+        error_out.assert_called_with(
+            'openstack-origin-git key \'%s\' is missing' % key)
 
+    @patch('os.path.join')
+    @patch.object(openstack, 'error_out')
+    @patch.object(openstack, '_git_clone_and_install_single')
+    @patch.object(openstack, 'pip_install')
+    @patch.object(openstack, 'pip_create_virtualenv')
+    def test_git_clone_and_install_errors(self, pip_venv, pip_install,
+                                          git_install_single, error_out, join):
+        git_missing_repos = """
+          repostories:
+             - {name: requirements,
+                repository: 'git://git.openstack.org/openstack/requirements',
+                branch: stable/juno}
+             - {name: keystone,
+                repository: 'git://git.openstack.org/openstack/keystone',
+                branch: stable/juno}"""
+        self._test_key_error(git_missing_repos, 'repositories', error_out)
+
+        git_missing_name = """
+          repositories:
+             - {name: requirements,
+                repository: 'git://git.openstack.org/openstack/requirements',
+                branch: stable/juno}
+             - {repository: 'git://git.openstack.org/openstack/keystone',
+                branch: stable/juno}"""
+        self._test_key_error(git_missing_name, 'name', error_out)
+
+        git_missing_repo = """
+          repositories:
+             - {name: requirements,
+                repoistroy: 'git://git.openstack.org/openstack/requirements',
+                branch: stable/juno}
+             - {name: keystone,
+                repository: 'git://git.openstack.org/openstack/keystone',
+                branch: stable/juno}"""
+        self._test_key_error(git_missing_repo, 'repository', error_out)
+
+        git_missing_branch = """
+          repositories:
+             - {name: requirements,
+                repository: 'git://git.openstack.org/openstack/requirements'}
+             - {name: keystone,
+                repository: 'git://git.openstack.org/openstack/keystone',
+                branch: stable/juno}"""
+        self._test_key_error(git_missing_branch, 'branch', error_out)
+
+        git_wrong_order_1 = """
+          repositories:
+             - {name: keystone,
+                repository: 'git://git.openstack.org/openstack/keystone',
+                branch: stable/juno}
+             - {name: requirements,
+                repository: 'git://git.openstack.org/openstack/requirements',
+                branch: stable/juno}"""
+        openstack.git_clone_and_install(git_wrong_order_1, 'keystone', depth=1)
+        error_out.assert_called_with('keystone git repo must be specified last')
+
+        git_wrong_order_2 = """
+          repositories:
+             - {name: keystone,
+                repository: 'git://git.openstack.org/openstack/keystone',
+                branch: stable/juno}"""
+        openstack.git_clone_and_install(git_wrong_order_2, 'keystone', depth=1)
+        error_out.assert_called_with('requirements git repo must be specified first')
+
+    @patch('os.path.join')
+    @patch.object(openstack, 'charm_dir')
+    @patch.object(openstack, 'error_out')
+    @patch.object(openstack, '_git_clone_and_install_single')
+    @patch.object(openstack, 'pip_install')
+    @patch.object(openstack, 'pip_create_virtualenv')
+    def test_git_clone_and_install_success(self, pip_venv, pip_install,
+                                           _git_install_single, error_out,
+                                           charm_dir, join):
+        proj = 'keystone'
+        charm_dir.return_value = '/var/lib/juju/units/testing-foo-0/charm'
+        # the following sets the global requirements_dir
+        _git_install_single.return_value = '/mnt/openstack-git/requirements'
+        join.return_value = '/mnt/openstack-git/venv'
+
+        openstack.git_clone_and_install(openstack_origin_git, proj, depth=1)
+        self.assertTrue(pip_venv.called)
+        pip_install.assert_called_with('setuptools', upgrade=True,
+                                       proxy=None,
+                                       venv='/mnt/openstack-git/venv')
+        self.assertTrue(_git_install_single.call_count == 2)
+        expected = [
+            call('git://git.openstack.org/openstack/requirements',
+                 'stable/juno', 1, '/mnt/openstack-git', None,
+                 update_requirements=False),
+            call('git://git.openstack.org/openstack/keystone',
+                 'stable/juno', 1, '/mnt/openstack-git', None,
+                 update_requirements=True)
+        ]
+        self.assertEquals(expected, _git_install_single.call_args_list)
+        assert not error_out.called
+
+    @patch('os.path.join')
+    @patch('os.mkdir')
+    @patch('os.path.exists')
+    @patch.object(openstack, 'juju_log')
+    @patch.object(openstack, 'install_remote')
+    @patch.object(openstack, 'pip_install')
+    @patch.object(openstack, '_git_update_requirements')
+    def test_git_clone_and_install_single(self, _git_update_reqs, pip_install,
+                                          install_remote, log, path_exists,
+                                          mkdir, join):
+        repo = 'git://git.openstack.org/openstack/requirements.git'
+        branch = 'master'
+        depth = 1
+        parent_dir = '/mnt/openstack-git/'
+        http_proxy = 'http://squid-proxy-url'
+        dest_dir = '/mnt/openstack-git'
+        join.return_value = dest_dir
+        path_exists.return_value = False
+        install_remote.return_value = dest_dir
+
+        openstack._git_clone_and_install_single(repo, branch, depth, parent_dir,
+                                                http_proxy, False)
+        mkdir.assert_called_with(parent_dir)
+        install_remote.assert_called_with(repo, dest=parent_dir, depth=1,
+                                          branch=branch)
+        assert not _git_update_reqs.called
+        pip_install.assert_called_with(dest_dir, venv='/mnt/openstack-git',
+                                       proxy='http://squid-proxy-url')
+
+    @patch('os.path.join')
+    @patch('os.mkdir')
+    @patch('os.path.exists')
+    @patch.object(openstack, 'juju_log')
+    @patch.object(openstack, 'install_remote')
+    @patch.object(openstack, 'pip_install')
+    @patch.object(openstack, '_git_update_requirements')
+    def test_git_clone_and_install_single_with_update(self, _git_update_reqs,
+                                                      pip_install,
+                                                      install_remote, log,
+                                                      path_exists, mkdir, join):
+        repo = 'git://git.openstack.org/openstack/requirements.git'
+        branch = 'master'
+        depth = 1
+        parent_dir = '/mnt/openstack-git/'
+        http_proxy = 'http://squid-proxy-url'
+        dest_dir = '/mnt/openstack-git'
+        venv_dir = '/mnt/openstack-git'
+        reqs_dir = '/mnt/openstack-git/requirements-dir'
+        join.return_value = dest_dir
+        openstack.requirements_dir = reqs_dir
+        path_exists.return_value = False
+        install_remote.return_value = dest_dir
+
+        openstack._git_clone_and_install_single(repo, branch, depth, parent_dir,
+                                                http_proxy, True)
+        mkdir.assert_called_with(parent_dir)
+        install_remote.assert_called_with(repo, dest=parent_dir, depth=1,
+                                          branch=branch)
+        _git_update_reqs.assert_called_with(venv_dir, dest_dir, reqs_dir)
+        pip_install.assert_called_with(dest_dir, venv='/mnt/openstack-git',
+                                       proxy='http://squid-proxy-url')
+
+    @patch('os.path.join')
+    @patch('os.getcwd')
+    @patch('os.chdir')
+    @patch('subprocess.check_call')
+    def test_git_update_requirements(self, check_call, chdir, getcwd, join):
+        pkg_dir = '/mnt/openstack-git/repo-dir'
+        reqs_dir = '/mnt/openstack-git/reqs-dir'
+        orig_dir = '/var/lib/juju/units/testing-foo-0/charm'
+        venv_dir = '/mnt/openstack-git/venv'
+        getcwd.return_value = orig_dir
+        join.return_value = '/mnt/openstack-git/venv/python'
+
+        openstack._git_update_requirements(venv_dir, pkg_dir, reqs_dir)
+        expected = [call(reqs_dir), call(orig_dir)]
+        self.assertEquals(expected, chdir.call_args_list)
+        check_call.assert_called_with(['/mnt/openstack-git/venv/python',
+                                      'update.py', pkg_dir])
+
+    @patch('os.path.join')
+    @patch('subprocess.check_call')
+    def test_git_src_dir(self, check_call, join):
+        openstack.git_src_dir(openstack_origin_git, 'keystone')
+        join.assert_called_with('/mnt/openstack-git', 'keystone')
 
 if __name__ == '__main__':
     unittest.main()

@@ -1,3 +1,19 @@
+# Copyright 2014-2015 Canonical Limited.
+#
+# This file is part of charm-helpers.
+#
+# charm-helpers is free software: you can redistribute it and/or modify
+# it under the terms of the GNU Lesser General Public License version 3 as
+# published by the Free Software Foundation.
+#
+# charm-helpers is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU Lesser General Public License for more details.
+#
+# You should have received a copy of the GNU Lesser General Public License
+# along with charm-helpers.  If not, see <http://www.gnu.org/licenses/>.
+
 #
 # Copyright 2012 Canonical Ltd.
 #
@@ -20,33 +36,41 @@ from charmhelpers.core.hookenv import (
 )
 
 
-def get_cert():
+def get_cert(cn=None):
+    # TODO: deal with multiple https endpoints via charm config
     cert = config_get('ssl_cert')
     key = config_get('ssl_key')
     if not (cert and key):
         log("Inspecting identity-service relations for SSL certificate.",
             level=INFO)
         cert = key = None
+        if cn:
+            ssl_cert_attr = 'ssl_cert_{}'.format(cn)
+            ssl_key_attr = 'ssl_key_{}'.format(cn)
+        else:
+            ssl_cert_attr = 'ssl_cert'
+            ssl_key_attr = 'ssl_key'
         for r_id in relation_ids('identity-service'):
             for unit in relation_list(r_id):
                 if not cert:
-                    cert = relation_get('ssl_cert',
+                    cert = relation_get(ssl_cert_attr,
                                         rid=r_id, unit=unit)
                 if not key:
-                    key = relation_get('ssl_key',
+                    key = relation_get(ssl_key_attr,
                                        rid=r_id, unit=unit)
     return (cert, key)
 
 
 def get_ca_cert():
-    ca_cert = None
-    log("Inspecting identity-service relations for CA SSL certificate.",
-        level=INFO)
-    for r_id in relation_ids('identity-service'):
-        for unit in relation_list(r_id):
-            if not ca_cert:
-                ca_cert = relation_get('ca_cert',
-                                       rid=r_id, unit=unit)
+    ca_cert = config_get('ssl_ca')
+    if ca_cert is None:
+        log("Inspecting identity-service relations for CA SSL certificate.",
+            level=INFO)
+        for r_id in relation_ids('identity-service'):
+            for unit in relation_list(r_id):
+                if ca_cert is None:
+                    ca_cert = relation_get('ca_cert',
+                                           rid=r_id, unit=unit)
     return ca_cert
 
 

@@ -14,19 +14,19 @@ import os
 import time
 
 
-LS_POOLS = """
+LS_POOLS = b"""
 images
 volumes
 rbd
 """
 
-LS_RBDS = """
+LS_RBDS = b"""
 rbd1
 rbd2
 rbd3
 """
 
-IMG_MAP = """
+IMG_MAP = b"""
 bar
 baz
 """
@@ -65,6 +65,24 @@ class CephUtilsTests(TestCase):
         self.log.assert_called()
         self.check_call.assert_not_called()
 
+    @patch('os.remove')
+    @patch('os.path.exists')
+    def test_delete_keyring(self, _exists, _remove):
+        '''It deletes a ceph keyring.'''
+        _exists.return_value = True
+        ceph_utils.delete_keyring('cinder')
+        _remove.assert_called_with('/etc/ceph/ceph.client.cinder.keyring')
+        self.log.assert_called()
+
+    @patch('os.remove')
+    @patch('os.path.exists')
+    def test_delete_keyring_not_exists(self, _exists, _remove):
+        '''It creates a new ceph keyring.'''
+        _exists.return_value = False
+        ceph_utils.delete_keyring('cinder')
+        self.log.assert_called()
+        _remove.assert_not_called()
+
     @patch('os.path.exists')
     def test_create_keyfile(self, _exists):
         '''It creates a new ceph keyfile'''
@@ -93,7 +111,7 @@ class CephUtilsTests(TestCase):
     @patch.object(ceph_utils, 'ceph_version')
     def test_get_osds(self, version):
         version.return_value = '0.56.2'
-        self.check_output.return_value = json.dumps([1, 2, 3])
+        self.check_output.return_value = json.dumps([1, 2, 3]).encode('UTF-8')
         self.assertEquals(ceph_utils.get_osds('test'), [1, 2, 3])
 
     @patch.object(ceph_utils, 'ceph_version')
@@ -104,7 +122,7 @@ class CephUtilsTests(TestCase):
     @patch.object(ceph_utils, 'ceph_version')
     def test_get_osds_none(self, version):
         version.return_value = '0.56.2'
-        self.check_output.return_value = json.dumps(None)
+        self.check_output.return_value = json.dumps(None).encode('UTF-8')
         self.assertEquals(ceph_utils.get_osds('test'), None)
 
     @patch.object(ceph_utils, 'get_osds')
@@ -116,23 +134,23 @@ class CephUtilsTests(TestCase):
         ceph_utils.create_pool(service='cinder', name='foo')
         self.check_call.assert_has_calls([
             call(['ceph', '--id', 'cinder', 'osd', 'pool',
-                  'create', 'foo', '150']),
+                  'create', 'foo', '100']),
             call(['ceph', '--id', 'cinder', 'osd', 'pool', 'set',
-                  'foo', 'size', '2'])
+                  'foo', 'size', '3'])
         ])
 
     @patch.object(ceph_utils, 'get_osds')
     @patch.object(ceph_utils, 'pool_exists')
-    def test_create_pool_3_replicas(self, _exists, _get_osds):
+    def test_create_pool_2_replicas(self, _exists, _get_osds):
         '''It creates rados pool correctly with 3 replicas'''
         _exists.return_value = False
         _get_osds.return_value = [1, 2, 3]
-        ceph_utils.create_pool(service='cinder', name='foo', replicas=3)
+        ceph_utils.create_pool(service='cinder', name='foo', replicas=2)
         self.check_call.assert_has_calls([
             call(['ceph', '--id', 'cinder', 'osd', 'pool',
-                  'create', 'foo', '100']),
+                  'create', 'foo', '150']),
             call(['ceph', '--id', 'cinder', 'osd', 'pool', 'set',
-                  'foo', 'size', '3'])
+                  'foo', 'size', '2'])
         ])
 
     @patch.object(ceph_utils, 'get_osds')
@@ -146,7 +164,7 @@ class CephUtilsTests(TestCase):
             call(['ceph', '--id', 'cinder', 'osd', 'pool',
                   'create', 'foo', '200']),
             call(['ceph', '--id', 'cinder', 'osd', 'pool', 'set',
-                  'foo', 'size', '2'])
+                  'foo', 'size', '3'])
         ])
 
     def test_create_pool_already_exists(self):
@@ -242,10 +260,11 @@ class CephUtilsTests(TestCase):
         _conf = ceph_utils.CEPH_CONF.format(
             auth='cephx',
             keyring=ceph_utils._keyring_path('cinder'),
-            mon_hosts=",".join(map(str, _hosts))
+            mon_hosts=",".join(map(str, _hosts)),
+            use_syslog='true'
         )
         with patch_open() as (_open, _file):
-            ceph_utils.configure('cinder', 'key', 'cephx')
+            ceph_utils.configure('cinder', 'key', 'cephx', 'true')
             _file.write.assert_called_with(_conf)
             _open.assert_called_with('/etc/ceph/ceph.conf', 'w')
         self.modprobe.assert_called_with('rbd')
@@ -407,8 +426,8 @@ class CephUtilsTests(TestCase):
         _blk_dev = '/dev/rbd1'
         ceph_utils.ensure_ceph_storage(_service, _pool,
                                        _rbd_img, 1024, _mount,
-                                       _blk_dev, 'ext4', _services)
-        self.create_pool.assert_called_with(_service, _pool)
+                                       _blk_dev, 'ext4', _services, 3)
+        self.create_pool.assert_called_with(_service, _pool, replicas=3)
         self.create_rbd_image.assert_called_with(_service, _pool,
                                                  _rbd_img, 1024)
         self.map_block_storage.assert_called_with(_service, _pool, _rbd_img)
@@ -432,7 +451,7 @@ class CephUtilsTests(TestCase):
         self.assertEquals(os.errno.ENOENT, e.errno)
         self.assertEquals(os.strerror(os.errno.ENOENT), e.strerror)
         self.log.assert_called_with(
-            'ceph: gave up waiting on block device %s' % device, level='ERROR')
+            'Gave up waiting on block device %s' % device, level='ERROR')
 
     @nose.plugins.attrib.attr('slow')
     def test_make_filesystem_timeout(self):
@@ -449,7 +468,7 @@ class CephUtilsTests(TestCase):
         duration = after - before
         self.assertTrue(timeout - duration < 0.1)
         self.log.assert_called_with(
-            'ceph: gave up waiting on block device %s' % device, level='ERROR')
+            'Gave up waiting on block device %s' % device, level='ERROR')
 
     @nose.plugins.attrib.attr('slow')
     def test_device_is_formatted_if_it_appears(self):
@@ -480,7 +499,7 @@ class CephUtilsTests(TestCase):
         ceph_utils.make_filesystem(device, fstype)
         self.check_call.assert_called_with(['mkfs', '-t', fstype, device])
         self.log.assert_called_with(
-            'ceph: Formatting block device %s as '
+            'Formatting block device %s as '
             'filesystem %s.' % (device, fstype), level='INFO'
         )
 
@@ -533,13 +552,30 @@ class CephUtilsTests(TestCase):
     @patch('os.path.exists')
     def test_ceph_version_error(self, path, output):
         path.return_value = True
-        output.return_value = ''
+        output.return_value = b''
         self.assertEquals(ceph_utils.ceph_version(), None)
 
     @patch.object(ceph_utils, 'check_output')
     @patch('os.path.exists')
     def test_ceph_version_ok(self, path, output):
         path.return_value = True
-        output.return_value = 'ceph version 0.67.4'\
-            ' (ad85b8bfafea6232d64cb7ba76a8b6e8252fa0c7)'
+        output.return_value = \
+            b'ceph version 0.67.4 (ad85b8bfafea6232d64cb7ba76a8b6e8252fa0c7)'
         self.assertEquals(ceph_utils.ceph_version(), '0.67.4')
+
+    def test_ceph_broker_rq_class(self):
+        rq = ceph_utils.CephBrokerRq()
+        rq.add_op_create_pool('pool1', replica_count=1)
+        rq.add_op_create_pool('pool2')
+        expected = json.dumps({'api-version': 1,
+                               'ops': [{'op': 'create-pool', 'name': 'pool1',
+                                        'replicas': 1},
+                                       {'op': 'create-pool', 'name': 'pool2',
+                                        'replicas': 3}]})
+        self.assertEqual(rq.request, expected)
+
+    def test_ceph_broker_rsp_class(self):
+        rsp = ceph_utils.CephBrokerRsp(json.dumps({'exit-code': 0,
+                                                   'stderr': "Success"}))
+        self.assertEqual(rsp.exit_code, 0)
+        self.assertEqual(rsp.exit_msg, "Success")

@@ -1,26 +1,55 @@
+# Copyright 2014-2015 Canonical Limited.
+#
+# This file is part of charm-helpers.
+#
+# charm-helpers is free software: you can redistribute it and/or modify
+# it under the terms of the GNU Lesser General Public License version 3 as
+# published by the Free Software Foundation.
+#
+# charm-helpers is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU Lesser General Public License for more details.
+#
+# You should have received a copy of the GNU Lesser General Public License
+# along with charm-helpers.  If not, see <http://www.gnu.org/licenses/>.
+
 # Copyright 2012 Canonical Ltd.  This software is licensed under the
 # GNU Affero General Public License version 3 (see the file LICENSE).
 
 import warnings
-warnings.warn("contrib.charmhelpers is deprecated", DeprecationWarning)
+warnings.warn("contrib.charmhelpers is deprecated", DeprecationWarning)  # noqa
+
+import operator
+import tempfile
+import time
+import yaml
+import subprocess
+
+import six
+if six.PY3:
+    from urllib.request import urlopen
+    from urllib.error import (HTTPError, URLError)
+else:
+    from urllib2 import (urlopen, HTTPError, URLError)
 
 """Helper functions for writing Juju charms in Python."""
 
 __metaclass__ = type
 __all__ = [
-    #'get_config',             # core.hookenv.config()
-    #'log',                    # core.hookenv.log()
-    #'log_entry',              # core.hookenv.log()
-    #'log_exit',               # core.hookenv.log()
-    #'relation_get',           # core.hookenv.relation_get()
-    #'relation_set',           # core.hookenv.relation_set()
-    #'relation_ids',           # core.hookenv.relation_ids()
-    #'relation_list',          # core.hookenv.relation_units()
-    #'config_get',             # core.hookenv.config()
-    #'unit_get',               # core.hookenv.unit_get()
-    #'open_port',              # core.hookenv.open_port()
-    #'close_port',             # core.hookenv.close_port()
-    #'service_control',        # core.host.service()
+    # 'get_config',             # core.hookenv.config()
+    # 'log',                    # core.hookenv.log()
+    # 'log_entry',              # core.hookenv.log()
+    # 'log_exit',               # core.hookenv.log()
+    # 'relation_get',           # core.hookenv.relation_get()
+    # 'relation_set',           # core.hookenv.relation_set()
+    # 'relation_ids',           # core.hookenv.relation_ids()
+    # 'relation_list',          # core.hookenv.relation_units()
+    # 'config_get',             # core.hookenv.config()
+    # 'unit_get',               # core.hookenv.unit_get()
+    # 'open_port',              # core.hookenv.open_port()
+    # 'close_port',             # core.hookenv.close_port()
+    # 'service_control',        # core.host.service()
     'unit_info',              # client-side, NOT IMPLEMENTED
     'wait_for_machine',       # client-side, NOT IMPLEMENTED
     'wait_for_page_contents',  # client-side, NOT IMPLEMENTED
@@ -28,22 +57,17 @@ __all__ = [
     'wait_for_unit',          # client-side, NOT IMPLEMENTED
 ]
 
-import operator
-from shelltoolbox import (
-    command,
-)
-import tempfile
-import time
-import urllib2
-import yaml
 
 SLEEP_AMOUNT = 0.1
+
+
 # We create a juju_status Command here because it makes testing much,
 # much easier.
-juju_status = lambda: command('juju')('status')
+def juju_status():
+    subprocess.check_call(['juju', 'status'])
 
 # re-implemented as charmhelpers.fetch.configure_sources()
-#def configure_source(update=False):
+# def configure_source(update=False):
 #    source = config_get('source')
 #    if ((source.startswith('ppa:') or
 #         source.startswith('cloud:') or
@@ -57,7 +81,7 @@ juju_status = lambda: command('juju')('status')
 
 # DEPRECATED: client-side only
 def make_charm_config_file(charm_config):
-    charm_config_file = tempfile.NamedTemporaryFile()
+    charm_config_file = tempfile.NamedTemporaryFile(mode='w+')
     charm_config_file.write(yaml.dump(charm_config))
     charm_config_file.flush()
     # The NamedTemporaryFile instance is returned instead of just the name
@@ -121,7 +145,7 @@ def wait_for_machine(num_machines=1, timeout=300):
         # we're in LXC.
         machine_data = get_machine_data()
         non_zookeeper_machines = [
-            machine_data[key] for key in machine_data.keys()[1:]]
+            machine_data[key] for key in list(machine_data.keys())[1:]]
         if len(non_zookeeper_machines) >= num_machines:
             all_machines_running = True
             for machine in non_zookeeper_machines:
@@ -172,8 +196,8 @@ def wait_for_page_contents(url, contents, timeout=120, validate=None):
     start_time = time.time()
     while True:
         try:
-            stream = urllib2.urlopen(url)
-        except (urllib2.HTTPError, urllib2.URLError):
+            stream = urlopen(url)
+        except (HTTPError, URLError):
             pass
         else:
             page = stream.read()

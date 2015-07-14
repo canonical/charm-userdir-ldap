@@ -1,3 +1,19 @@
+# Copyright 2014-2015 Canonical Limited.
+#
+# This file is part of charm-helpers.
+#
+# charm-helpers is free software: you can redistribute it and/or modify
+# it under the terms of the GNU Lesser General Public License version 3 as
+# published by the Free Software Foundation.
+#
+# charm-helpers is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU Lesser General Public License for more details.
+#
+# You should have received a copy of the GNU Lesser General Public License
+# along with charm-helpers.  If not, see <http://www.gnu.org/licenses/>.
+
 ''' Helpers for interacting with OpenvSwitch '''
 import subprocess
 import os
@@ -21,12 +37,16 @@ def del_bridge(name):
     subprocess.check_call(["ovs-vsctl", "--", "--if-exists", "del-br", name])
 
 
-def add_bridge_port(name, port):
+def add_bridge_port(name, port, promisc=False):
     ''' Add a port to the named openvswitch bridge '''
     log('Adding port {} to bridge {}'.format(port, name))
     subprocess.check_call(["ovs-vsctl", "--", "--may-exist", "add-port",
                            name, port])
     subprocess.check_call(["ip", "link", "set", port, "up"])
+    if promisc:
+        subprocess.check_call(["ip", "link", "set", port, "promisc", "on"])
+    else:
+        subprocess.check_call(["ip", "link", "set", port, "promisc", "off"])
 
 
 def del_bridge_port(name, port):
@@ -35,6 +55,7 @@ def del_bridge_port(name, port):
     subprocess.check_call(["ovs-vsctl", "--", "--if-exists", "del-port",
                            name, port])
     subprocess.check_call(["ip", "link", "set", port, "down"])
+    subprocess.check_call(["ip", "link", "set", port, "promisc", "off"])
 
 
 def set_manager(manager):

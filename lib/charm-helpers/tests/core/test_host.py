@@ -1,10 +1,12 @@
 from collections import OrderedDict
 import subprocess
+import apt_pkg
 
 from mock import patch, call
 from testtools import TestCase
 from tests.helpers import patch_open
 from tests.helpers import mock_open as mocked_open
+import six
 
 from charmhelpers.core import host
 
@@ -18,25 +20,35 @@ devpts /dev/pts devpts """
                """rw,nosuid,noexec,relatime,gid=5,mode=620,ptmxmode=000 0 0
 """).strip().split('\n')
 
-LSB_RELEASE = u'''DISTRIB_ID=Ubuntu
+LSB_RELEASE = '''DISTRIB_ID=Ubuntu
 DISTRIB_RELEASE=13.10
 DISTRIB_CODENAME=saucy
 DISTRIB_DESCRIPTION="Ubuntu Saucy Salamander (development branch)"
 '''
 
-IP_LINE_ETH0 = ("""
+IP_LINE_ETH0 = b"""
 2: eth0: <BROADCAST,MULTICAST,SLAVE,UP,LOWER_UP> mtu 1500 qdisc mq master bond0 state UP qlen 1000
     link/ether e4:11:5b:ab:a7:3c brd ff:ff:ff:ff:ff:ff
-""")
+"""
 
-IP_LINE_ETH1 = ("""
+IP_LINE_ETH0_VLAN = b"""
+6: eth0.10@eth0: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1500 qdisc noqueue state UP group default
+    link/ether 08:00:27:16:b9:5f brd ff:ff:ff:ff:ff:ff
+"""
+
+IP_LINE_ETH1 = b"""
 3: eth1: <BROADCAST,MULTICAST> mtu 1546 qdisc noop state DOWN qlen 1000
     link/ether e4:11:5b:ab:a7:3c brd ff:ff:ff:ff:ff:ff
-""")
+"""
 
-IP_LINE_HWADDR = ("""2: eth0: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1500 qdisc pfifo_fast state UP qlen 1000\    link/ether e4:11:5b:ab:a7:3c brd ff:ff:ff:ff:ff:ff""")
+IP_LINE_HWADDR = b"""2: eth0: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1500 qdisc pfifo_fast state UP qlen 1000\    link/ether e4:11:5b:ab:a7:3c brd ff:ff:ff:ff:ff:ff"""
 
-IP_LINES = IP_LINE_ETH0 + IP_LINE_ETH1
+IP_LINES = IP_LINE_ETH0 + IP_LINE_ETH1 + IP_LINE_ETH0_VLAN
+
+IP_LINE_BONDS = b"""
+6: bond0.10@bond0: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1500 qdisc noqueue state UP group default
+link/ether 08:00:27:16:b9:5f brd ff:ff:ff:ff:ff:ff
+"""
 
 
 class HelpersTest(TestCase):
@@ -160,12 +172,12 @@ class HelpersTest(TestCase):
 
     @patch('subprocess.check_output')
     def test_service_running_on_stopped_service(self, check_output):
-        check_output.return_value = 'foo stop/waiting'
+        check_output.return_value = b'foo stop/waiting'
         self.assertFalse(host.service_running('foo'))
 
     @patch('subprocess.check_output')
     def test_service_running_on_running_service(self, check_output):
-        check_output.return_value = 'foo start/running, process 23871'
+        check_output.return_value = b'foo start/running, process 23871'
         self.assertTrue(host.service_running('foo'))
 
     @patch('subprocess.check_output')
@@ -273,12 +285,64 @@ class HelpersTest(TestCase):
             group
         ])
 
+    @patch('grp.getgrnam')
+    @patch('subprocess.check_call')
+    @patch.object(host, 'log')
+    def test_add_a_group_if_it_doesnt_exist(self, log, check_call, getgrnam):
+        group_name = 'testgroup'
+        existing_group_grnam = KeyError('group not found')
+        new_group_grnam = 'some group grnam'
+
+        getgrnam.side_effect = [existing_group_grnam, new_group_grnam]
+
+        result = host.add_group(group_name)
+
+        self.assertEqual(result, new_group_grnam)
+        check_call.assert_called_with(['addgroup', '--group', group_name])
+        getgrnam.assert_called_with(group_name)
+
+    @patch('grp.getgrnam')
+    @patch('subprocess.check_call')
+    @patch.object(host, 'log')
+    def test_doesnt_add_group_if_it_already_exists(self, log, check_call,
+                                                   getgrnam):
+        group_name = 'testgroup'
+        existing_group_grnam = 'some group grnam'
+
+        getgrnam.return_value = existing_group_grnam
+
+        result = host.add_group(group_name)
+
+        self.assertEqual(result, existing_group_grnam)
+        self.assertFalse(check_call.called)
+        getgrnam.assert_called_with(group_name)
+
+    @patch('grp.getgrnam')
+    @patch('subprocess.check_call')
+    @patch.object(host, 'log')
+    def test_add_a_system_group(self, log, check_call, getgrnam):
+        group_name = 'testgroup'
+        existing_group_grnam = KeyError('group not found')
+        new_group_grnam = 'some group grnam'
+
+        getgrnam.side_effect = [existing_group_grnam, new_group_grnam]
+
+        result = host.add_group(group_name, system_group=True)
+
+        self.assertEqual(result, new_group_grnam)
+        check_call.assert_called_with([
+            'addgroup',
+            '--system',
+            group_name
+        ])
+        getgrnam.assert_called_with(group_name)
+
     @patch('subprocess.check_output')
     @patch.object(host, 'log')
     def test_rsyncs_a_path(self, log, check_output):
         from_path = '/from/this/path/foo'
         to_path = '/to/this/path/bar'
-        check_output.return_value = ' some output '
+        check_output.return_value = b' some output '  # Spaces will be stripped
 
         result = host.rsync(from_path, to_path)
 
@@ -313,7 +377,7 @@ class HelpersTest(TestCase):
         path = '/some/other/path/from/link'
         realpath = '/some/path'
         path_exists = False
-        perms = 0644
+        perms = 0o644
 
         getpwnam.return_value.pw_uid = uid
         getgrnam.return_value.gr_gid = gid
@@ -337,7 +401,7 @@ class HelpersTest(TestCase):
         path = '/some/other/path/from/link'
         realpath = '/some/path'
         path_exists = False
-        perms = 0555
+        perms = 0o555
 
         os_.path.abspath.return_value = realpath
         os_.path.exists.return_value = path_exists
@@ -364,7 +428,7 @@ class HelpersTest(TestCase):
         path_exists = True
         force = True
         is_dir = False
-        perms = 0644
+        perms = 0o644
 
         getpwnam.return_value.pw_uid = uid
         getgrnam.return_value.gr_gid = gid
@@ -379,7 +443,7 @@ class HelpersTest(TestCase):
         os_.path.abspath.assert_called_with(path)
         os_.path.exists.assert_called_with(realpath)
         os_.unlink.assert_called_with(realpath)
-        self.assertFalse(os_.makedirs.called)
+        os_.makedirs.assert_called()
         os_.chown.assert_called_with(realpath, uid, gid)
 
     @patch('pwd.getpwnam')
@@ -395,8 +459,8 @@ class HelpersTest(TestCase):
         owner = 'some-user-{foo}'
         group = 'some-group-{bar}'
         path = '/some/path/{baz}'
-        contents = 'what is {juju}'
-        perms = 0644
+        contents = b'what is {juju}'
+        perms = 0o644
         fileno = 'some-fileno'
 
         getpwnam.return_value.pw_uid = uid
@@ -410,10 +474,10 @@ class HelpersTest(TestCase):
 
             getpwnam.assert_called_with('some-user-{foo}')
             getgrnam.assert_called_with('some-group-{bar}')
-            mock_open.assert_called_with('/some/path/{baz}', 'w')
+            mock_open.assert_called_with('/some/path/{baz}', 'wb')
             os_.fchown.assert_called_with(fileno, uid, gid)
             os_.fchmod.assert_called_with(fileno, perms)
-            mock_file.write.assert_called_with('what is {juju}')
+            mock_file.write.assert_called_with(b'what is {juju}')
 
     @patch.object(host, 'log')
     @patch.object(host, 'os')
@@ -421,8 +485,8 @@ class HelpersTest(TestCase):
         uid = 0
         gid = 0
         path = '/some/path/{baz}'
-        fmtstr = 'what is {juju}'
-        perms = 0444
+        fmtstr = b'what is {juju}'
+        perms = 0o444
         fileno = 'some-fileno'
 
         with patch_open() as (mock_open, mock_file):
@@ -430,10 +494,25 @@ class HelpersTest(TestCase):
 
             host.write_file(path, fmtstr)
 
-            mock_open.assert_called_with('/some/path/{baz}', 'w')
+            mock_open.assert_called_with('/some/path/{baz}', 'wb')
             os_.fchown.assert_called_with(fileno, uid, gid)
             os_.fchmod.assert_called_with(fileno, perms)
-            mock_file.write.assert_called_with('what is {juju}')
+            mock_file.write.assert_called_with(b'what is {juju}')
+
+    @patch.object(host, 'log')
+    @patch.object(host, 'os')
+    def test_writes_binary_contents(self, os_, log):
+        path = '/some/path/{baz}'
+        fmtstr = six.u('what is {juju}\N{TRADE MARK SIGN}').encode('UTF-8')
+        fileno = 'some-fileno'
+
+        with patch_open() as (mock_open, mock_file):
+            mock_file.fileno.return_value = fileno
+
+            host.write_file(path, fmtstr)
+
+            mock_open.assert_called_with('/some/path/{baz}', 'wb')
+            mock_file.write.assert_called_with(fmtstr)
 
     @patch('subprocess.check_output')
     @patch.object(host, 'log')
@@ -475,9 +554,47 @@ class HelpersTest(TestCase):
         self.assertTrue(result)
         check_output.assert_called_with(['mount', '/dev/guido', '/mnt/guido'])
 
+    @patch.object(host, 'Fstab')
     @patch('subprocess.check_output')
     @patch.object(host, 'log')
-    def test_umounts_a_device(self, log, check_output):
+    def test_mounts_and_persist_a_device(self, log, check_output, fstab):
+        """Check if a mount works with the persist flag set to True
+        """
+        device = '/dev/guido'
+        mountpoint = '/mnt/guido'
+        options = 'foo,bar'
+
+        result = host.mount(device, mountpoint, options, persist=True)
+
+        self.assertTrue(result)
+        check_output.assert_called_with(['mount', '-o', 'foo,bar',
+                                         '/dev/guido', '/mnt/guido'])
+
+        fstab.add.assert_called_with('/dev/guido', '/mnt/guido', 'ext3',
+                                     options='foo,bar')
+
+        result = host.mount(device, mountpoint, options, persist=True,
+                            filesystem="xfs")
+
+        self.assertTrue(result)
+        fstab.add.assert_called_with('/dev/guido', '/mnt/guido', 'xfs',
+                                     options='foo,bar')
+
+    @patch.object(host, 'Fstab')
+    @patch('subprocess.check_output')
+    @patch.object(host, 'log')
+    def test_umounts_a_device(self, log, check_output, fstab):
+        mountpoint = '/mnt/guido'
+
+        result = host.umount(mountpoint, persist=True)
+
+        self.assertTrue(result)
+        check_output.assert_called_with(['umount', mountpoint])
+        fstab.remove_by_mountpoint_called_with(mountpoint)
+
+    @patch('subprocess.check_output')
+    @patch.object(host, 'log')
+    def test_umounts_and_persist_device(self, log, check_output):
         mountpoint = '/mnt/guido'
 
         result = host.umount(mountpoint)
@@ -538,14 +655,37 @@ class HelpersTest(TestCase):
             result = host.file_hash(filename)
             self.assertEqual(result, None)
 
+    @patch('hashlib.sha1')
+    @patch('os.path.exists')
+    def test_file_hash_sha1(self, exists, sha1):
+        filename = '/etc/exists.conf'
+        exists.side_effect = [True]
+        m = sha1()
+        m.hexdigest.return_value = self._hash_files[filename]
+        with patch_open() as (mock_open, mock_file):
+            mock_file.read.return_value = self._hash_files[filename]
+            result = host.file_hash(filename, hash_type='sha1')
+            self.assertEqual(result, self._hash_files[filename])
+
+    @patch.object(host, 'file_hash')
+    def test_check_hash(self, file_hash):
+        file_hash.return_value = 'good-hash'
+        self.assertRaises(host.ChecksumError, host.check_hash, 'file', 'bad-hash')
+        host.check_hash('file', 'good-hash', 'sha256')
+        self.assertEqual(file_hash.call_args_list, [
+            call('file', 'md5'),
+            call('file', 'sha256'),
+        ])
+
     @patch.object(host, 'service')
     @patch('os.path.exists')
-    def test_restart_no_changes(self, exists, service):
+    @patch('glob.iglob')
+    def test_restart_no_changes(self, iglob, exists, service):
         file_name = '/etc/missing.conf'
         restart_map = {
             file_name: ['test-service']
         }
-        exists.side_effect = [False, False]
+        iglob.return_value = []
 
         @host.restart_on_change(restart_map)
         def make_no_changes():
@@ -554,23 +694,22 @@ class HelpersTest(TestCase):
         make_no_changes()
 
         assert not service.called
-
-        exists.assert_has_calls([
-            call(file_name),
-        ])
+        assert not exists.called
 
     @patch.object(host, 'service')
     @patch('os.path.exists')
-    def test_restart_on_change(self, exists, service):
+    @patch('glob.iglob')
+    def test_restart_on_change(self, iglob, exists, service):
         file_name = '/etc/missing.conf'
         restart_map = {
             file_name: ['test-service']
         }
-        exists.side_effect = [False, True]
+        iglob.side_effect = [[], [file_name]]
+        exists.return_value = True
 
         @host.restart_on_change(restart_map)
         def make_some_changes(mock_file):
-            mock_file.read.return_value = "newstuff"
+            mock_file.read.return_value = b"newstuff"
 
         with patch_open() as (mock_open, mock_file):
             make_some_changes(mock_file)
@@ -584,21 +723,24 @@ class HelpersTest(TestCase):
 
     @patch.object(host, 'service')
     @patch('os.path.exists')
-    def test_multiservice_restart_on_change(self, exists, service):
+    @patch('glob.iglob')
+    def test_multiservice_restart_on_change(self, iglob, exists, service):
         file_name_one = '/etc/missing.conf'
         file_name_two = '/etc/exists.conf'
         restart_map = {
             file_name_one: ['test-service'],
             file_name_two: ['test-service', 'test-service2']
         }
-        exists.side_effect = [False, True, True, True]
+        iglob.side_effect = [[], [file_name_two],
+                             [file_name_one], [file_name_two]]
+        exists.return_value = True
 
         @host.restart_on_change(restart_map)
         def make_some_changes():
             pass
 
         with patch_open() as (mock_open, mock_file):
-            mock_file.read.side_effect = ['exists', 'missing', 'exists2']
+            mock_file.read.side_effect = [b'exists', b'missing', b'exists2']
             make_some_changes()
 
         # Restart should only happen once per service
@@ -613,19 +755,24 @@ class HelpersTest(TestCase):
 
     @patch.object(host, 'service')
     @patch('os.path.exists')
-    def test_multiservice_restart_on_change_in_order(self, exists, service):
+    @patch('glob.iglob')
+    def test_multiservice_restart_on_change_in_order(self, iglob, exists, service):
+        file_name_one = '/etc/cinder/cinder.conf'
+        file_name_two = '/etc/haproxy/haproxy.conf'
         restart_map = OrderedDict([
-            ('/etc/cinder/cinder.conf', ['some-api']),
-            ('/etc/haproxy/haproxy.conf', ['haproxy'])
+            (file_name_one, ['some-api']),
+            (file_name_two, ['haproxy'])
         ])
-        exists.side_effect = [False, True, True, True]
+        iglob.side_effect = [[], [file_name_two],
+                             [file_name_one], [file_name_two]]
+        exists.return_value = True
 
         @host.restart_on_change(restart_map)
         def make_some_changes():
             pass
 
         with patch_open() as (mock_open, mock_file):
-            mock_file.read.side_effect = ['exists', 'missing', 'exists2']
+            mock_file.read.side_effect = [b'exists', b'missing', b'exists2']
             make_some_changes()
 
         # Restarts should happen in the order they are described in the
@@ -635,6 +782,106 @@ class HelpersTest(TestCase):
             call('restart', 'haproxy')
         ]
         self.assertEquals(expected, service.call_args_list)
+
+    @patch.object(host, 'service')
+    @patch('os.path.exists')
+    @patch('glob.iglob')
+    def test_glob_no_restart(self, iglob, exists, service):
+        glob_path = '/etc/service/*.conf'
+        file_name_one = '/etc/service/exists.conf'
+        file_name_two = '/etc/service/exists2.conf'
+        restart_map = {
+            glob_path: ['service']
+        }
+        iglob.side_effect = [[file_name_one, file_name_two],
+                             [file_name_one, file_name_two]]
+        exists.return_value = True
+
+        @host.restart_on_change(restart_map)
+        def make_some_changes():
+            pass
+
+        with patch_open() as (mock_open, mock_file):
+            mock_file.read.side_effect = [b'content', b'content2',
+                                          b'content', b'content2']
+            make_some_changes()
+
+        self.assertEquals([], service.call_args_list)
+
+    @patch.object(host, 'service')
+    @patch('os.path.exists')
+    @patch('glob.iglob')
+    def test_glob_restart_on_change(self, iglob, exists, service):
+        glob_path = '/etc/service/*.conf'
+        file_name_one = '/etc/service/exists.conf'
+        file_name_two = '/etc/service/exists2.conf'
+        restart_map = {
+            glob_path: ['service']
+        }
+        iglob.side_effect = [[file_name_one, file_name_two],
+                             [file_name_one, file_name_two]]
+        exists.return_value = True
+
+        @host.restart_on_change(restart_map)
+        def make_some_changes():
+            pass
+
+        with patch_open() as (mock_open, mock_file):
+            mock_file.read.side_effect = [b'content', b'content2',
+                                          b'changed', b'content2']
+            make_some_changes()
+
+        self.assertEquals([call('restart', 'service')], service.call_args_list)
+
+    @patch.object(host, 'service')
+    @patch('os.path.exists')
+    @patch('glob.iglob')
+    def test_glob_restart_on_create(self, iglob, exists, service):
+        glob_path = '/etc/service/*.conf'
+        file_name_one = '/etc/service/exists.conf'
+        file_name_two = '/etc/service/missing.conf'
+        restart_map = {
+            glob_path: ['service']
+        }
+        iglob.side_effect = [[file_name_one],
+                             [file_name_one, file_name_two]]
+        exists.return_value = True
+
+        @host.restart_on_change(restart_map)
+        def make_some_changes():
+            pass
+
+        with patch_open() as (mock_open, mock_file):
+            mock_file.read.side_effect = [b'exists',
+                                          b'exists', b'created']
+            make_some_changes()
+
+        self.assertEquals([call('restart', 'service')], service.call_args_list)
+
+    @patch.object(host, 'service')
+    @patch('os.path.exists')
+    @patch('glob.iglob')
+    def test_glob_restart_on_delete(self, iglob, exists, service):
+        glob_path = '/etc/service/*.conf'
+        file_name_one = '/etc/service/exists.conf'
+        file_name_two = '/etc/service/exists2.conf'
+        restart_map = {
+            glob_path: ['service']
+        }
+        iglob.side_effect = [[file_name_one, file_name_two],
+                             [file_name_two]]
+        exists.return_value = True
+
+        @host.restart_on_change(restart_map)
+        def make_some_changes():
+            pass
+
+        with patch_open() as (mock_open, mock_file):
+            mock_file.read.side_effect = [b'exists', b'exists2',
+                                          b'exists2']
+            make_some_changes()
+
+        self.assertEquals([call('restart', 'service')], service.call_args_list)
 
     def test_lsb_release(self):
         result = {
@@ -647,7 +894,6 @@ class HelpersTest(TestCase):
         with mocked_open('/etc/lsb-release', LSB_RELEASE):
             lsb_release = host.lsb_release()
             for key in result:
-                print lsb_release
                 self.assertEqual(result[key], lsb_release[key])
 
     def test_pwgen(self):
@@ -664,16 +910,28 @@ class HelpersTest(TestCase):
     def test_list_nics(self, check_output):
         check_output.return_value = IP_LINES
         nics = host.list_nics('eth')
-        self.assertEqual(nics, ['eth0', 'eth1'])
+        self.assertEqual(nics, ['eth0', 'eth1', 'eth0.10'])
         nics = host.list_nics(['eth'])
-        self.assertEqual(nics, ['eth0', 'eth1'])
+        self.assertEqual(nics, ['eth0', 'eth1', 'eth0.10'])
+
+    @patch('subprocess.check_output')
+    def test_list_nics_with_bonds(self, check_output):
+        check_output.return_value = IP_LINE_BONDS
+        nics = host.list_nics('bond')
+        self.assertEqual(nics, ['bond0.10', ])
+
+    @patch('subprocess.check_output')
+    def test_get_nic_mtu_with_bonds(self, check_output):
+        check_output.return_value = IP_LINE_BONDS
+        nic = "bond0.10"
+        mtu = host.get_nic_mtu(nic)
+        self.assertEqual(mtu, '1500')
 
     @patch('subprocess.check_call')
     def test_set_nic_mtu(self, mock_call):
         mock_call.return_value = 0
         nic = 'eth7'
         mtu = '1546'
-        #result = host.set_nic_mtu(nic, mtu)
         host.set_nic_mtu(nic, mtu)
         mock_call.assert_called_with(['ip', 'link', 'set', nic, 'mtu', mtu])
 
@@ -685,8 +943,33 @@ class HelpersTest(TestCase):
         self.assertEqual(mtu, '1500')
 
     @patch('subprocess.check_output')
+    def test_get_nic_mtu_vlan(self, check_output):
+        check_output.return_value = IP_LINE_ETH0_VLAN
+        nic = "eth0.10"
+        mtu = host.get_nic_mtu(nic)
+        self.assertEqual(mtu, '1500')
+
+    @patch('subprocess.check_output')
     def test_get_nic_hwaddr(self, check_output):
         check_output.return_value = IP_LINE_HWADDR
         nic = "eth0"
         hwaddr = host.get_nic_hwaddr(nic)
         self.assertEqual(hwaddr, 'e4:11:5b:ab:a7:3c')
+
+    @patch.object(apt_pkg, 'Cache')
+    def test_cmp_pkgrevno_revnos(self, pkg_cache):
+        class MockPackage:
+            class MockPackageRevno:
+                def __init__(self, ver_str):
+                    self.ver_str = ver_str
+
+            def __init__(self, current_ver):
+                self.current_ver = self.MockPackageRevno(current_ver)
+
+        pkg_dict = {
+            'python': MockPackage('2.4')
+        }
+        pkg_cache.return_value = pkg_dict
+        self.assertEqual(host.cmp_pkgrevno('python', '2.3'), 1)
+        self.assertEqual(host.cmp_pkgrevno('python', '2.4'), 0)
+        self.assertEqual(host.cmp_pkgrevno('python', '2.5'), -1)

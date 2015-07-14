@@ -1,49 +1,65 @@
+# Copyright 2014-2015 Canonical Limited.
+#
+# This file is part of charm-helpers.
+#
+# charm-helpers is free software: you can redistribute it and/or modify
+# it under the terms of the GNU Lesser General Public License version 3 as
+# published by the Free Software Foundation.
+#
+# charm-helpers is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU Lesser General Public License for more details.
+#
+# You should have received a copy of the GNU Lesser General Public License
+# along with charm-helpers.  If not, see <http://www.gnu.org/licenses/>.
+
 """Charm Helpers saltstack - declare the state of your machines.
 
 This helper enables you to declare your machine state, rather than
 program it procedurally (and have to test each change to your procedures).
-Your install hook can be as simple as:
+Your install hook can be as simple as::
 
-{{{
-from charmhelpers.contrib.saltstack import (
-    install_salt_support,
-    update_machine_state,
-)
+    {{{
+    from charmhelpers.contrib.saltstack import (
+        install_salt_support,
+        update_machine_state,
+    )
 
 
-def install():
-    install_salt_support()
-    update_machine_state('machine_states/dependencies.yaml')
-    update_machine_state('machine_states/installed.yaml')
-}}}
+    def install():
+        install_salt_support()
+        update_machine_state('machine_states/dependencies.yaml')
+        update_machine_state('machine_states/installed.yaml')
+    }}}
 
 and won't need to change (nor will its tests) when you change the machine
 state.
 
 It's using a python package called salt-minion which allows various formats for
-specifying resources, such as:
+specifying resources, such as::
 
-{{{
-/srv/{{ basedir }}:
-    file.directory:
-        - group: ubunet
-        - user: ubunet
-        - require:
-            - user: ubunet
-        - recurse:
-            - user
-            - group
-
-ubunet:
-    group.present:
-        - gid: 1500
-    user.present:
-        - uid: 1500
-        - gid: 1500
-        - createhome: False
-        - require:
+    {{{
+    /srv/{{ basedir }}:
+        file.directory:
             - group: ubunet
-}}}
+            - user: ubunet
+            - require:
+                - user: ubunet
+            - recurse:
+                - user
+                - group
+
+    ubunet:
+        group.present:
+            - gid: 1500
+        user.present:
+            - uid: 1500
+            - gid: 1500
+            - createhome: False
+            - require:
+                - group: ubunet
+    }}}
 
 The docs for all the different state definitions are at:
     http://docs.saltstack.com/ref/states/all/

@@ -5,12 +5,14 @@
 import mock
 import os
 import shutil
+import stat
 import tempfile
 import unittest
 import yaml
 
 
 import charmhelpers.contrib.ansible
+from charmhelpers.core import hookenv
 
 
 class InstallAnsibleSupportTestCase(unittest.TestCase):
@@ -65,6 +67,11 @@ class InstallAnsibleSupportTestCase(unittest.TestCase):
 
 class ApplyPlaybookTestCases(unittest.TestCase):
 
+    unit_data = {
+        'private-address': '10.0.3.2',
+        'public-address': '123.123.123.123',
+    }
+
     def setUp(self):
         super(ApplyPlaybookTestCases, self).setUp()
 
@@ -78,6 +85,18 @@ class ApplyPlaybookTestCases(unittest.TestCase):
         self.mock_relation_get = patcher.start()
         self.mock_relation_get.return_value = {}
         self.addCleanup(patcher.stop)
+        patcher = mock.patch('charmhelpers.core.hookenv.relations')
+        self.mock_relations = patcher.start()
+        self.mock_relations.return_value = {
+            'wsgi-file': {},
+            'website': {},
+            'nrpe-external-master': {},
+        }
+        self.addCleanup(patcher.stop)
+        patcher = mock.patch('charmhelpers.core.hookenv.relations_of_type')
+        self.mock_relations_of_type = patcher.start()
+        self.mock_relations_of_type.return_value = []
+        self.addCleanup(patcher.stop)
         patcher = mock.patch('charmhelpers.core.hookenv.relation_type')
         self.mock_relation_type = patcher.start()
         self.mock_relation_type.return_value = None
@@ -86,6 +105,15 @@ class ApplyPlaybookTestCases(unittest.TestCase):
         self.mock_local_unit = patcher.start()
         self.addCleanup(patcher.stop)
         self.mock_local_unit.return_value = {}
+
+        def unit_get_data(argument):
+            "dummy unit_get that accesses dummy unit data"
+            return self.unit_data[argument]
+
+        patcher = mock.patch(
+            'charmhelpers.core.hookenv.unit_get', unit_get_data)
+        self.mock_unit_get = patcher.start()
+        self.addCleanup(patcher.stop)
 
         patcher = mock.patch('charmhelpers.contrib.ansible.subprocess')
         self.mock_subprocess = patcher.start()
@@ -99,12 +127,18 @@ class ApplyPlaybookTestCases(unittest.TestCase):
         patcher.start()
         self.addCleanup(patcher.stop)
 
+        patcher = mock.patch.object(charmhelpers.contrib.ansible.os,
+                                    'environ', {})
+        patcher.start()
+        self.addCleanup(patcher.stop)
+
     def test_calls_ansible_playbook(self):
         charmhelpers.contrib.ansible.apply_playbook(
             'playbooks/dependencies.yaml')
 
         self.mock_subprocess.check_call.assert_called_once_with([
-            'ansible-playbook', '-c', 'local', 'playbooks/dependencies.yaml'])
+            'ansible-playbook', '-c', 'local', 'playbooks/dependencies.yaml'],
+            env={'PYTHONUNBUFFERED': '1'})
 
     def test_writes_vars_file(self):
         self.assertFalse(os.path.exists(self.vars_path))
@@ -123,6 +157,12 @@ class ApplyPlaybookTestCases(unittest.TestCase):
             'playbooks/dependencies.yaml')
 
         self.assertTrue(os.path.exists(self.vars_path))
+        stats = os.stat(self.vars_path)
+        self.assertEqual(
+            stats.st_mode & stat.S_IRWXU,
+            stat.S_IRUSR | stat.S_IWUSR)
+        self.assertEqual(stats.st_mode & stat.S_IRWXG, 0)
+        self.assertEqual(stats.st_mode & stat.S_IRWXO, 0)
         with open(self.vars_path, 'r') as vars_file:
             result = yaml.load(vars_file.read())
             self.assertEqual({
@@ -131,8 +171,24 @@ class ApplyPlaybookTestCases(unittest.TestCase):
                 "private_address": "10.10.10.10",
                 "charm_dir": "",
                 "local_unit": {},
+                'current_relation': {
+                    'relation_key1': 'relation_value1',
+                    'relation-key2': 'relation_value2',
+                },
+                'relations_full': {
+                    'nrpe-external-master': {},
+                    'website': {},
+                    'wsgi-file': {},
+                },
+                'relations': {
+                    'nrpe-external-master': [],
+                    'website': [],
+                    'wsgi-file': [],
+                },
                 "wsgi_file__relation_key1": "relation_value1",
                 "wsgi_file__relation_key2": "relation_value2",
+                "unit_private_address": "10.0.3.2",
+                "unit_public_address": "123.123.123.123",
             }, result)
 
     def test_calls_with_tags(self):
@@ -141,9 +197,21 @@ class ApplyPlaybookTestCases(unittest.TestCase):
 
         self.mock_subprocess.check_call.assert_called_once_with([
             'ansible-playbook', '-c', 'local', 'playbooks/complete-state.yaml',
-            '--tags', 'install,somethingelse'])
+            '--tags', 'install,somethingelse'], env={'PYTHONUNBUFFERED': '1'})
 
-    def test_hooks_executes_playbook_with_tag(self):
+    @mock.patch.object(hookenv, 'config')
+    def test_calls_with_extra_vars(self, config):
+        charmhelpers.contrib.ansible.apply_playbook(
+            'playbooks/complete-state.yaml', tags=['install', 'somethingelse'],
+            extra_vars={'a': 'b'})
+
+        self.mock_subprocess.check_call.assert_called_once_with([
+            'ansible-playbook', '-c', 'local', 'playbooks/complete-state.yaml',
+            '--tags', 'install,somethingelse', '--extra-vars', 'a=b'],
+            env={'PYTHONUNBUFFERED': '1'})
+
+    @mock.patch.object(hookenv, 'config')
+    def test_hooks_executes_playbook_with_tag(self, config):
         hooks = charmhelpers.contrib.ansible.AnsibleHooks('my/playbook.yaml')
         foo = mock.MagicMock()
         hooks.register('foo', foo)
@@ -153,9 +221,10 @@ class ApplyPlaybookTestCases(unittest.TestCase):
         self.assertEqual(foo.call_count, 1)
         self.mock_subprocess.check_call.assert_called_once_with([
             'ansible-playbook', '-c', 'local', 'my/playbook.yaml',
-            '--tags', 'foo'])
+            '--tags', 'foo'], env={'PYTHONUNBUFFERED': '1'})
 
-    def test_specifying_ansible_handled_hooks(self):
+    @mock.patch.object(hookenv, 'config')
+    def test_specifying_ansible_handled_hooks(self, config):
         hooks = charmhelpers.contrib.ansible.AnsibleHooks(
             'my/playbook.yaml', default_hooks=['start', 'stop'])
 
@@ -163,4 +232,84 @@ class ApplyPlaybookTestCases(unittest.TestCase):
 
         self.mock_subprocess.check_call.assert_called_once_with([
             'ansible-playbook', '-c', 'local', 'my/playbook.yaml',
-            '--tags', 'start'])
+            '--tags', 'start'], env={'PYTHONUNBUFFERED': '1'})
+
+
+class TestActionDecorator(unittest.TestCase):
+
+    def setUp(self):
+        p = mock.patch('charmhelpers.contrib.ansible.apply_playbook')
+        self.apply_playbook = p.start()
+        self.addCleanup(p.stop)
+
+    def test_action_no_args(self):
+        hooks = charmhelpers.contrib.ansible.AnsibleHooks('playbook.yaml')
+
+        @hooks.action()
+        def test():
+            return {}
+
+        hooks.execute(['test'])
+        self.apply_playbook.assert_called_once_with(
+            'playbook.yaml', tags=['test'], extra_vars={})
+
+    def test_action_required_arg_keyword(self):
+        hooks = charmhelpers.contrib.ansible.AnsibleHooks('playbook.yaml')
+
+        @hooks.action()
+        def test(x):
+            return locals()
+
+        hooks.execute(['test', 'x=a'])
+        self.apply_playbook.assert_called_once_with(
+            'playbook.yaml', tags=['test'], extra_vars={'x': 'a'})
+
+    def test_action_required_arg_missing(self):
+        hooks = charmhelpers.contrib.ansible.AnsibleHooks('playbook.yaml')
+
+        @hooks.action()
+        def test(x):
+            """Requires x"""
+            return locals()
+
+        try:
+            hooks.execute(['test'])
+            self.fail("should have thrown TypeError")
+        except TypeError as e:
+            self.assertEqual(e.args[1], "Requires x")
+
+    def test_action_required_unknown_arg(self):
+        hooks = charmhelpers.contrib.ansible.AnsibleHooks('playbook.yaml')
+
+        @hooks.action()
+        def test(x='a'):
+            """Requires x"""
+            return locals()
+
+        try:
+            hooks.execute(['test', 'z=c'])
+            self.fail("should have thrown TypeError")
+        except TypeError as e:
+            self.assertEqual(e.args[1], "Requires x")
+
+    def test_action_default_arg(self):
+        hooks = charmhelpers.contrib.ansible.AnsibleHooks('playbook.yaml')
+
+        @hooks.action()
+        def test(x='b'):
+            return locals()
+
+        hooks.execute(['test'])
+        self.apply_playbook.assert_called_once_with(
+            'playbook.yaml', tags=['test'], extra_vars={'x': 'b'})
+
+    def test_action_mutliple(self):
+        hooks = charmhelpers.contrib.ansible.AnsibleHooks('playbook.yaml')
+
+        @hooks.action()
+        def test(x, y='b'):
+            return locals()
+
+        hooks.execute(['test', 'x=a', 'y=b'])
+        self.apply_playbook.assert_called_once_with(
+            'playbook.yaml', tags=['test'], extra_vars={'x': 'a', 'y': 'b'})

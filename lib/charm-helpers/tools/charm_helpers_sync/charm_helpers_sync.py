@@ -1,10 +1,23 @@
 #!/usr/bin/python
+
+# Copyright 2014-2015 Canonical Limited.
 #
-# Copyright 2013 Canonical Ltd.
+# This file is part of charm-helpers.
+#
+# charm-helpers is free software: you can redistribute it and/or modify
+# it under the terms of the GNU Lesser General Public License version 3 as
+# published by the Free Software Foundation.
+#
+# charm-helpers is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU Lesser General Public License for more details.
+#
+# You should have received a copy of the GNU Lesser General Public License
+# along with charm-helpers.  If not, see <http://www.gnu.org/licenses/>.
 
 # Authors:
 #   Adam Gandelman <adamg@ubuntu.com>
-#
 
 import logging
 import optparse
@@ -14,8 +27,9 @@ import shutil
 import sys
 import tempfile
 import yaml
-
 from fnmatch import fnmatch
+
+import six
 
 CHARM_HELPERS_BRANCH = 'lp:charm-helpers'
 
@@ -30,7 +44,7 @@ def parse_config(conf_file):
 def clone_helpers(work_dir, branch):
     dest = os.path.join(work_dir, 'charm-helpers')
     logging.info('Checking out %s to %s.' % (branch, dest))
-    cmd = ['bzr', 'branch', branch, dest]
+    cmd = ['bzr', 'checkout', '--lightweight', branch, dest]
     subprocess.check_call(cmd)
     return dest
 
@@ -121,6 +135,20 @@ def sync_directory(src, dest, opts=None):
 
 
 def sync(src, dest, module, opts=None):
+
+    # Sync charmhelpers/__init__.py for bootstrap code.
+    sync_pyfile(_src_path(src, '__init__'), dest)
+
+    # Sync other __init__.py files in the path leading to module.
+    m = []
+    steps = module.split('.')[:-1]
+    while steps:
+        m.append(steps.pop(0))
+        init = '.'.join(m + ['__init__'])
+        sync_pyfile(_src_path(src, init),
+                    os.path.dirname(_dest_path(dest, init)))
+
+    # Sync the module, or maybe a .py file.
     if os.path.isdir(_src_path(src, module)):
         sync_directory(_src_path(src, module), _dest_path(dest, module), opts)
     elif _is_pyfile(_src_path(src, module)):
@@ -139,7 +167,7 @@ def parse_sync_options(options):
 
 def extract_options(inc, global_options=None):
     global_options = global_options or []
-    if global_options and isinstance(global_options, basestring):
+    if global_options and isinstance(global_options, six.string_types):
         global_options = [global_options]
     if '|' not in inc:
         return (inc, global_options)
@@ -149,7 +177,7 @@ def extract_options(inc, global_options=None):
 
 def sync_helpers(include, src, dest, options=None):
     if not os.path.isdir(dest):
-        os.mkdir(dest)
+        os.makedirs(dest)
 
     global_options = parse_sync_options(options)
 
@@ -159,7 +187,7 @@ def sync_helpers(include, src, dest, options=None):
             sync(src, dest, inc, opts)
         elif isinstance(inc, dict):
             # could also do nested dicts here.
-            for k, v in inc.iteritems():
+            for k, v in six.iteritems(inc):
                 if isinstance(v, list):
                     for m in v:
                         inc, opts = extract_options(m, global_options)
@@ -217,7 +245,7 @@ if __name__ == '__main__':
         checkout = clone_helpers(tmpd, config['branch'])
         sync_helpers(config['include'], checkout, config['destination'],
                      options=sync_options)
-    except Exception, e:
+    except Exception as e:
         logging.error("Could not sync: %s" % e)
         raise e
     finally:

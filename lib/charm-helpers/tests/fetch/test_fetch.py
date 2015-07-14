@@ -1,14 +1,24 @@
+import subprocess
+
 from tests.helpers import patch_open
 from testtools import TestCase
 from mock import (
     patch,
     MagicMock,
     call,
+    sentinel,
 )
-from urlparse import urlparse
 from charmhelpers import fetch
 import os
 import yaml
+
+import six
+from six.moves import StringIO
+if six.PY3:
+    from urllib.parse import urlparse
+else:
+    from urlparse import urlparse
+
 
 FAKE_APT_CACHE = {
     # an installed package
@@ -69,6 +79,11 @@ class FetchTest(TestCase):
         log.assert_called_with('Package joe has no installation candidate.',
                                level='WARNING')
 
+    @patch.object(fetch, 'log')
+    def test_add_source_none(self, log):
+        fetch.add_source(source=None)
+        self.assertTrue(log.called)
+
     @patch('subprocess.check_call')
     def test_add_source_ppa(self, check_call):
         source = "ppa:test-ppa"
@@ -80,6 +95,14 @@ class FetchTest(TestCase):
     @patch('subprocess.check_call')
     def test_add_source_http(self, check_call):
         source = "http://archive.ubuntu.com/ubuntu raring-backports main"
+        fetch.add_source(source=source)
+        check_call.assert_called_with(['add-apt-repository',
+                                       '--yes',
+                                       source])
+
+    @patch('subprocess.check_call')
+    def test_add_source_https(self, check_call):
+        source = "https://example.com"
         fetch.add_source(source=source)
         check_call.assert_called_with(['add-apt-repository',
                                        '--yes',
@@ -162,14 +185,62 @@ deb http://archive.ubuntu.com/ubuntu precise-proposed main universe multiverse r
             mock_file.write.assert_called_with(result)
 
     @patch('subprocess.check_call')
-    def test_add_source_http_and_key(self, check_call):
+    def test_add_source_http_and_key_id(self, check_call):
         source = "http://archive.ubuntu.com/ubuntu raring-backports main"
-        key = "akey"
-        fetch.add_source(source=source, key=key)
+        key_id = "akey"
+        fetch.add_source(source=source, key=key_id)
         check_call.assert_has_calls([
             call(['add-apt-repository', '--yes', source]),
-            call(['apt-key', 'import', key])
+            call(['apt-key', 'adv', '--keyserver',
+                  'hkp://keyserver.ubuntu.com:80', '--recv', key_id])
         ])
+
+    @patch('subprocess.check_call')
+    def test_add_source_https_and_key_id(self, check_call):
+        source = "https://USER:PASS@private-ppa.launchpad.net/project/awesome"
+        key_id = "GPGPGP"
+        fetch.add_source(source=source, key=key_id)
+        check_call.assert_has_calls([
+            call(['add-apt-repository', '--yes', source]),
+            call(['apt-key', 'adv', '--keyserver',
+                  'hkp://keyserver.ubuntu.com:80', '--recv', key_id])
+        ])
+
+    @patch('subprocess.check_call')
+    def test_add_source_http_and_key(self, check_call):
+        source = "http://archive.ubuntu.com/ubuntu raring-backports main"
+        key = '''
+            -----BEGIN PGP PUBLIC KEY BLOCK-----
+            [...]
+            -----END PGP PUBLIC KEY BLOCK-----
+            '''
+
+        received_args = []
+        received_key = StringIO()
+
+        def _check_call(arg, stdin=None):
+            '''side_effect to store the stdin passed to check_call process.'''
+            if stdin is not None:
+                received_args.extend(arg)
+                received_key.write(stdin.read())
+
+        with patch('subprocess.check_call',
+                   side_effect=_check_call) as check_call:
+            fetch.add_source(source=source, key=key)
+            check_call.assert_any_call(['add-apt-repository', '--yes', source])
+            self.assertEqual(['apt-key', 'add', '-'], received_args)
+            self.assertEqual(key, received_key.getvalue())
+
+    @patch('charmhelpers.fetch.log')
+    def test_add_unparsable_source(self, log_):
+        source = "propsed"  # Minor typo
+        fetch.add_source(source=source)
+        self.assertEqual(1, log_.call_count)
+
+    def test_add_distro_source(self):
+        source = "distro"
+        # distro is a noop but test validate no exception is thrown
+        fetch.add_source(source=source)
 
     @patch.object(fetch, 'config')
     @patch.object(fetch, 'add_source')
@@ -177,6 +248,20 @@ deb http://archive.ubuntu.com/ubuntu precise-proposed main universe multiverse r
         config.side_effect = ['source', 'key']
         fetch.configure_sources()
         add_source.assert_called_with('source', 'key')
+
+    @patch.object(fetch, 'config')
+    @patch.object(fetch, 'add_source')
+    def test_configure_sources_null_source(self, add_source, config):
+        config.side_effect = [None, None]
+        fetch.configure_sources()
+        self.assertEqual(add_source.call_count, 0)
+
+    @patch.object(fetch, 'config')
+    @patch.object(fetch, 'add_source')
+    def test_configure_sources_empty_source(self, add_source, config):
+        config.side_effect = ['', '']
+        fetch.configure_sources()
+        self.assertEqual(add_source.call_count, 0)
 
     @patch.object(fetch, 'config')
     @patch.object(fetch, 'add_source')
@@ -278,6 +363,9 @@ class InstallTest(TestCase):
 
             self.assertEqual(result, "foo")
 
+        fetch.install_remote('url', extra_arg=True)
+        h2.install.assert_called_with('url', extra_arg=True)
+
     @patch('charmhelpers.fetch.install_remote')
     @patch('charmhelpers.fetch.config')
     def test_installs_from_config(self, _config, _instrem):
@@ -323,7 +411,11 @@ class PluginTest(TestCase):
     @patch('charmhelpers.fetch.log')
     def test_plugins_are_valid(self, log_):
         plugins = fetch.plugins()
-        self.assertEqual(len(fetch.FETCH_HANDLERS), len(plugins))
+        if not six.PY3:
+            self.assertEqual(len(fetch.FETCH_HANDLERS), len(plugins))
+        else:
+            # No bzr or git libraries for Python3.
+            self.assertEqual(len(fetch.FETCH_HANDLERS) - 2, len(plugins))
 
 
 class BaseFetchHandlerTest(TestCase):
@@ -363,6 +455,36 @@ class BaseFetchHandlerTest(TestCase):
 
 
 class AptTests(TestCase):
+
+    @patch('subprocess.call')
+    @patch.object(fetch, 'log')
+    def test_apt_upgrade_non_fatal(self, log, mock_call):
+        options = ['--foo', '--bar']
+        fetch.apt_upgrade(options)
+
+        mock_call.assert_called_with(['apt-get', '--assume-yes',
+                                      '--foo', '--bar', 'upgrade'],
+                                     env=getenv({'DEBIAN_FRONTEND': 'noninteractive'}))
+
+    @patch('subprocess.check_call')
+    @patch.object(fetch, 'log')
+    def test_apt_upgrade_fatal(self, log, mock_call):
+        options = ['--foo', '--bar']
+        fetch.apt_upgrade(options, fatal=True)
+
+        mock_call.assert_called_with(['apt-get', '--assume-yes',
+                                      '--foo', '--bar', 'upgrade'],
+                                     env=getenv({'DEBIAN_FRONTEND': 'noninteractive'}))
+
+    @patch('subprocess.check_call')
+    @patch.object(fetch, 'log')
+    def test_apt_dist_upgrade_fatal(self, log, mock_call):
+        options = ['--foo', '--bar']
+        fetch.apt_upgrade(options, fatal=True, dist=True)
+
+        mock_call.assert_called_with(['apt-get', '--assume-yes',
+                                      '--foo', '--bar', 'dist-upgrade'],
+                                     env=getenv({'DEBIAN_FRONTEND': 'noninteractive'}))
 
     @patch('subprocess.call')
     @patch.object(fetch, 'log')
@@ -442,8 +564,9 @@ class AptTests(TestCase):
         fetch.apt_purge(packages)
 
         log.assert_called()
-        mock_call.assert_called_with(['apt-get', '--assume-yes',
-                                      'purge', 'foo bar'])
+        mock_call.assert_called_with(
+            ['apt-get', '--assume-yes', 'purge', 'foo bar'], env=getenv(
+                {'DEBIAN_FRONTEND': 'noninteractive'}))
 
     @patch('subprocess.call')
     @patch.object(fetch, 'log')
@@ -453,63 +576,124 @@ class AptTests(TestCase):
         fetch.apt_purge(packages)
 
         log.assert_called()
-        mock_call.assert_called_with(['apt-get', '--assume-yes',
-                                      'purge', 'foo', 'bar'])
+        mock_call.assert_called_with(
+            ['apt-get', '--assume-yes', 'purge', 'foo', 'bar'], env=getenv(
+                {'DEBIAN_FRONTEND': 'noninteractive'}))
 
     @patch('subprocess.check_call')
     @patch.object(fetch, 'log')
-    def test_hold_apt_packages_as_string_fatal(self, log, mock_call):
+    def test_mark_apt_packages_as_string_fatal(self, log, mock_call):
         packages = 'irrelevant names'
         mock_call.side_effect = OSError('fail')
 
-        mock_call.assertRaises(OSError, fetch.apt_hold, packages, fatal=True)
+        mock_call.assertRaises(OSError,
+                               fetch.apt_mark, packages,
+                               sentinel.mark, fatal=True)
         log.assert_called()
 
     @patch('subprocess.check_call')
     @patch.object(fetch, 'log')
-    def test_hold_apt_packages_fatal(self, log, mock_call):
+    def test_mark_apt_packages_fatal(self, log, mock_call):
         packages = ['irrelevant', 'names']
         mock_call.side_effect = OSError('fail')
 
-        mock_call.assertRaises(OSError, fetch.apt_hold, packages, fatal=True)
+        mock_call.assertRaises(OSError,
+                               fetch.apt_mark, packages,
+                               sentinel.mark, fatal=True)
         log.assert_called()
 
     @patch('subprocess.call')
     @patch.object(fetch, 'log')
-    def test_hold_apt_packages_as_string_nofatal(self, log, mock_call):
+    def test_mark_apt_packages_as_string_nofatal(self, log, mock_call):
         packages = 'foo bar'
 
-        fetch.apt_hold(packages)
+        fetch.apt_mark(packages, sentinel.mark)
 
         log.assert_called()
-        mock_call.assert_called_with(['apt-mark', 'hold', 'foo bar'])
+        mock_call.assert_called_with(['apt-mark', sentinel.mark, 'foo bar'],
+                                     universal_newlines=True)
 
     @patch('subprocess.call')
     @patch.object(fetch, 'log')
-    def test_hold_apt_packages_nofatal(self, log, mock_call):
+    def test_mark_apt_packages_nofatal(self, log, mock_call):
         packages = ['foo', 'bar']
 
-        fetch.apt_hold(packages)
+        fetch.apt_mark(packages, sentinel.mark)
 
         log.assert_called()
-        mock_call.assert_called_with(['apt-mark', 'hold', 'foo', 'bar'])
+        mock_call.assert_called_with(['apt-mark', sentinel.mark, 'foo', 'bar'],
+                                     universal_newlines=True)
 
     @patch('subprocess.check_call')
     @patch.object(fetch, 'log')
-    def test_hold_apt_packages_nofatal_abortonfatal(self, log, mock_call):
+    def test_mark_apt_packages_nofatal_abortonfatal(self, log, mock_call):
         packages = ['foo', 'bar']
 
-        fetch.apt_hold(packages, fatal=True)
+        fetch.apt_mark(packages, sentinel.mark, fatal=True)
 
         log.assert_called()
-        mock_call.assert_called_with(['apt-mark', 'hold', 'foo', 'bar'])
+        mock_call.assert_called_with(['apt-mark', sentinel.mark, 'foo', 'bar'],
+                                     universal_newlines=True)
+
+    @patch.object(fetch, 'apt_mark')
+    def test_apt_hold(self, apt_mark):
+        fetch.apt_hold(sentinel.packages)
+        apt_mark.assert_called_once_with(sentinel.packages, 'hold',
+                                         fatal=False)
+
+    @patch.object(fetch, 'apt_mark')
+    def test_apt_hold_fatal(self, apt_mark):
+        fetch.apt_hold(sentinel.packages, fatal=sentinel.fatal)
+        apt_mark.assert_called_once_with(sentinel.packages, 'hold',
+                                         fatal=sentinel.fatal)
+
+    @patch.object(fetch, 'apt_mark')
+    def test_apt_unhold(self, apt_mark):
+        fetch.apt_unhold(sentinel.packages)
+        apt_mark.assert_called_once_with(sentinel.packages, 'unhold',
+                                         fatal=False)
+
+    @patch.object(fetch, 'apt_mark')
+    def test_apt_unhold_fatal(self, apt_mark):
+        fetch.apt_unhold(sentinel.packages, fatal=sentinel.fatal)
+        apt_mark.assert_called_once_with(sentinel.packages, 'unhold',
+                                         fatal=sentinel.fatal)
 
     @patch('subprocess.check_call')
     def test_apt_update_fatal(self, check_call):
         fetch.apt_update(fatal=True)
-        check_call.assert_called_with(['apt-get', 'update'])
+        check_call.assert_called_with(
+            ['apt-get', 'update'], env=getenv(
+                {'DEBIAN_FRONTEND': 'noninteractive'}))
 
     @patch('subprocess.call')
     def test_apt_update_nonfatal(self, call):
         fetch.apt_update()
-        call.assert_called_with(['apt-get', 'update'])
+        call.assert_called_with(
+            ['apt-get', 'update'], env=getenv(
+                {'DEBIAN_FRONTEND': 'noninteractive'}))
+
+    @patch('subprocess.check_call')
+    @patch('time.sleep')
+    def test_run_apt_command_reties_if_fatal(self, check_call, sleep):
+        """The _run_apt_command function retries the command if it can't get
+        the APT lock."""
+        self.called = False
+
+        def side_effect(*args, **kwargs):
+            """
+            First, raise an exception (can't acquire lock), then return 0
+            (the lock is grabbed).
+            """
+            if not self.called:
+                self.called = True
+                raise subprocess.CalledProcessError(
+                    returncode=100, cmd="some command")
+            else:
+                return 0
+
+        check_call.side_effect = side_effect
+        check_call.return_value = 0
+
+        fetch._run_apt_command(["some", "command"], fatal=True)
+        sleep.assert_called()
