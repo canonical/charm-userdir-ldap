@@ -9,7 +9,7 @@ from Cheetah.Template import Template
 
 local_copy = os.path.join(
     os.path.dirname(os.path.abspath(os.path.dirname(__file__))),
-    "lib", "charm-helpers")
+    "hooks", "charmhelpers")
 if os.path.exists(local_copy) and os.path.isdir(local_copy):
     sys.path.insert(0, local_copy)
 
