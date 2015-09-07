@@ -130,7 +130,7 @@ def setup_udldap():
             content=root_id_rsa_pub,
             perms=0600,
         )
-        
+
     # Generate a keypair if we don't already have one
     if not os.path.exists('/root/.ssh/id_rsa'):
         subprocess.check_call(['/usr/bin/ssh-keygen', '-q', '-t', 'rsa',
@@ -148,6 +148,9 @@ def setup_udldap():
     minute2 = minute1 + 15
     minute3 = minute1 + 30
     minute4 = minute1 + 45
+    # Valid minutes for crontab is 0 - 59
+    if minute4 >= 60:
+        minute4 = 59
     with open('%s/templates/ud-replicate.tmpl' % charm_dir, 'r') as t:
         tmpl = Template(t.read())
         tmpl.minute1 = minute1
@@ -180,7 +183,7 @@ def setup_udldap():
             else:
                 log("setup_udldap: {} exists but is not a symlink; "
                     "doing nothing".format(linkdst))
-            
+
 
 # Change the sshd keyfile to use our locations
 # Note: this cannot be done before juju is setup (e.g. during MaaS
