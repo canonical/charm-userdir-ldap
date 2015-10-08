@@ -104,10 +104,10 @@ def setup_udldap():
         os.symlink('/var/lib/misc/ssh_known_hosts', '/etc/ssh/ssh_known_hosts')
     # The first run of ud-replicate requires that
     # userdb.internal's host key be trusted.
-    seed_known_hosts = str(config("userdb-known-hosts"))
+    seed_known_hosts = config("userdb-known-hosts")
     if seed_known_hosts:
         with open('/root/.ssh/known_hosts', 'a') as f:
-            f.write('%s\n' % seed_known_hosts)
+            f.write('%s\n' % str(seed_known_hosts))
     else:
         os.system('/usr/bin/ssh-keyscan -t rsa userdb.internal \
             >> /root/.ssh/known_hosts')
