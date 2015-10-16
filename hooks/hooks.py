@@ -1,9 +1,11 @@
 #!/usr/bin/python
+
 import os
 import pwd
 import random
-import subprocess
 import shutil
+import socket
+import subprocess
 import sys
 from Cheetah.Template import Template
 
