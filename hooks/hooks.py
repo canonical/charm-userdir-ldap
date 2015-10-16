@@ -68,19 +68,19 @@ def update_hosts():
     hostname = os.uname()[1]
     dns_fqdn = socket.getfqdn()
     if dns_fqdn.find('.') == -1:
-        domain = None
+        domain = str(config("domain"))
     else:
         domain = dns_fqdn[dns_fqdn.find('.') + 1:]
+    if domain:
+        fqdn = '{}.{}'.format(hostname, domain)
+    else:
+        fqdn = hostname
 
     if not any(userdb_host in line for line in hosts):
         hosts.append("{} {}\n".format(userdb_ip, userdb_host))
 
     if not any(hostname in line for line in hosts):
-        if domain:
-            hosts.append("127.0.242.1 {}.{} {}\n".format(hostname, domain,
-                                                         hostname))
-        else:
-            hosts.append("127.0.242.1 {}\n".format(hostname))
+        hosts.append("127.0.242.1 {} {}\n".format(fqdn, hostname))
 
     # Write it out if anything changed
     if old_hosts != hosts:
