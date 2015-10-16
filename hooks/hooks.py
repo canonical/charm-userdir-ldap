@@ -1,9 +1,11 @@
 #!/usr/bin/python
+
 import os
 import pwd
 import random
-import subprocess
 import shutil
+import socket
+import subprocess
 import sys
 from Cheetah.Template import Template
 
@@ -61,13 +63,26 @@ def update_hosts():
     # make a copy for later comparison
     old_hosts = list(hosts)
 
+    # We can't rely on socket.getfqdn() and still need to use os.uname() here
+    # because MAAS creates multiple reverse DNS entries, e.g.:
+    #   5.0.189.10.in-addr.arpa domain name pointer 10-189-0-5.bos01.scalingstack.
+    #   5.0.189.10.in-addr.arpa domain name pointer bagon.bos01.scalingstack.
     hostname = os.uname()[1]
+    dns_fqdn = socket.getfqdn()
+    if dns_fqdn.find('.') == -1:
+        domain = str(config("domain"))
+    else:
+        domain = dns_fqdn[dns_fqdn.find('.') + 1:]
+    if domain:
+        fqdn = '{}.{}'.format(hostname, domain)
+    else:
+        fqdn = hostname
 
     if not any(userdb_host in line for line in hosts):
         hosts.append("{} {}\n".format(userdb_ip, userdb_host))
 
     if not any(hostname in line for line in hosts):
-        hosts.append("127.0.242.1 {}\n".format(hostname))
+        hosts.append("127.0.242.1 {} {}\n".format(fqdn, hostname))
 
     # Write it out if anything changed
     if old_hosts != hosts:
