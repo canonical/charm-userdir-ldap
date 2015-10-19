@@ -3,6 +3,7 @@
 import os
 import pwd
 import random
+import re
 import shutil
 import socket
 import subprocess
@@ -24,6 +25,8 @@ from charmhelpers.core.hookenv import (
     Hooks,
     config,
     log,
+    relation_ids,
+    related_units,
 )
 
 from charmhelpers.core.host import (
@@ -73,6 +76,17 @@ def update_hosts():
         domain = str(config("domain"))
     else:
         domain = dns_fqdn[dns_fqdn.find('.') + 1:]
+
+    # For LXC containers, service names are nicer, e.g.
+    #   vbuilder-manage-production-ppc64el.DOMAIN
+    hostname_lxc = ''
+    if re.search('^juju-machine-[0-9]+-lxc-', hostname):
+        for relid in relation_ids('general-info'):
+            relation = related_units(relid)
+            if relation:
+                hostname_lxc = ' {}'.format(hostname)
+                hostname = relation[0][:relation[0].find('/')]
+
     if domain:
         fqdn = '{}.{}'.format(hostname, domain)
     else:
@@ -82,7 +96,8 @@ def update_hosts():
         hosts.append("{} {}\n".format(userdb_ip, userdb_host))
 
     if not any(hostname in line for line in hosts):
-        hosts.append("127.0.242.1 {} {}\n".format(fqdn, hostname))
+        hosts.append("127.0.242.1 {} {}{}\n".format(fqdn, hostname,
+                                                    hostname_lxc))
 
     # Write it out if anything changed
     if old_hosts != hosts:
