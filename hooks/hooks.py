@@ -79,10 +79,12 @@ def update_hosts():
 
     # For LXC containers, service names are nicer, e.g.
     #   vbuilder-manage-production-ppc64el.DOMAIN
+    hostname_lxc = ''
     if re.search('^juju-machine-[0-9]+-lxc-', hostname):
         for relid in relation_ids('general-info'):
             relation = related_units(relid)
             if relation:
+                hostname_lxc = ' {}'.format(hostname)
                 hostname = relation[0][:relation[0].find('/')]
 
     if domain:
@@ -94,7 +96,8 @@ def update_hosts():
         hosts.append("{} {}\n".format(userdb_ip, userdb_host))
 
     if not any(hostname in line for line in hosts):
-        hosts.append("127.0.242.1 {} {}\n".format(fqdn, hostname))
+        hosts.append("127.0.242.1 {} {}{}\n".format(fqdn, hostname,
+                                                    hostname_lxc))
 
     # Write it out if anything changed
     if old_hosts != hosts:
