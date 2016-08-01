@@ -27,6 +27,7 @@ from charmhelpers.core.hookenv import (
     log,
     relation_ids,
     related_units,
+    open_port,
 )
 
 from charmhelpers.core.host import (
@@ -191,8 +192,8 @@ def setup_udldap():
     with open('/etc/cron.d/ud-replicate', 'w') as f:
         f.write(str(tmpl))
     # All done
-    #subprocess.check_call(['bzr', 'add', '/etc'])
-    #subprocess.check_call(['bzr', 'ci', '/etc', '-m',
+    # subprocess.check_call(['bzr', 'add', '/etc'])
+    # subprocess.check_call(['bzr', 'ci', '/etc', '-m',
     #                       '"', 'setup', 'ud-ldap', '"'])
 
     # handle template userdir-ldap hosts
@@ -213,6 +214,10 @@ def setup_udldap():
             else:
                 log("setup_udldap: {} exists but is not a symlink; "
                     "doing nothing".format(linkdst))
+    # Open the sshd port so we don't have to manually munge secgroups
+    # This is only relevant with ud-ldap since otherwise we can connect via
+    # juju ssh to the unit
+    open_port(22)
 
 
 # Change the sshd keyfile to use our locations
