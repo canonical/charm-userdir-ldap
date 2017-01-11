@@ -115,17 +115,17 @@ def setup_udldap():
     update_hosts()
     configure_sources(True, 'apt-repo-spec', 'apt-repo-keys')
     # Need to install/update openssh-server from *-cat for pam_mkhomedir.so.
-    apt_install('hostname userdir-ldap openssh-server'.split())
+    apt_install('hostname libnss-db openssh-server userdir-ldap'.split())
     if not os.path.exists('/root/.ssh'):
-        os.makedirs('/root/.ssh', mode=0700)
+        os.makedirs('/root/.ssh', mode=0o700)
     shutil.copyfile('%s/files/nsswitch.conf' % charm_dir,
                     '/etc/nsswitch.conf')
     shutil.copyfile("%s/files/snafflekeys" % charm_dir,
                     "/usr/local/sbin/snafflekeys")
-    os.chmod("/usr/local/sbin/snafflekeys", 0755)
+    os.chmod("/usr/local/sbin/snafflekeys", 0o755)
     shutil.copyfile("%s/files/sudoers" % charm_dir,
                     "/etc/sudoers")
-    os.chmod("/etc/sudoers", 0440)
+    os.chmod("/etc/sudoers", 0o440)
 
     # If we don't assert these symlinks in /etc, ud-replicate
     # will write to them for us and trip up the local changes check.
@@ -149,7 +149,7 @@ def setup_udldap():
         write_file(
             path='/root/.ssh/id_rsa',
             content=str(config('root-id-rsa')),
-            perms=0600,
+            perms=0o600,
         )
         root_id_rsa_pub = subprocess.check_output([
             '/usr/bin/ssh-keygen',
@@ -159,7 +159,7 @@ def setup_udldap():
         write_file(
             path='/root/.ssh/id_rsa.pub',
             content=root_id_rsa_pub,
-            perms=0600,
+            perms=0o600,
         )
 
     # Generate a keypair if we don't already have one
@@ -247,7 +247,7 @@ def copy_user_keys():
     dst_keydir = "/etc/ssh/user-authorized-keys"
     if not os.path.isdir(dst_keydir):
         os.mkdir(dst_keydir)
-        os.chmod(dst_keydir, 0755)
+        os.chmod(dst_keydir, 0o755)
         os.chown(dst_keydir, 0, 0)
     user_list = str(config("users-to-migrate")).split()
 
@@ -258,7 +258,7 @@ def copy_user_keys():
             log("Migrating authorized_keys for {}".format(username))
             dst_keyfile = "{}/{}".format(dst_keydir, username)
             shutil.copyfile(src_keyfile, dst_keyfile)
-            os.chmod(dst_keyfile, 0444)
+            os.chmod(dst_keyfile, 0o444)
             os.chown(dst_keyfile, 0, 0)
         else:
             log("No authorized_keys file to migrate for {}".format(username))
