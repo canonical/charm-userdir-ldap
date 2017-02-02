@@ -252,7 +252,14 @@ def copy_user_keys():
     user_list = str(config("users-to-migrate")).split()
 
     for username in user_list:
-        src_keyfile = os.path.join(pwd.getpwnam(username).pw_dir,
+        # Skip if the user doesn't exist.
+        try:
+            pwnam = pwd.getpwnam(username)
+        except KeyError as e:
+            log("User {} does not exist, skipping.".format(username))
+            continue
+
+        src_keyfile = os.path.join(pwnam.pw_dir,
                                    ".ssh/authorized_keys")
         if os.path.isfile(src_keyfile):
             log("Migrating authorized_keys for {}".format(username))
