@@ -44,4 +44,4 @@ options:
   macs:
     type: string
     default: "umac-128-etm@openssh.com,hmac-sha2-512-etm@openssh.com,hmac-sha2-256-etm@openssh.com"
-    description: "List of MAC (message authentication code) algorithms allowed. Default MACs available since OpenSSH 6.2 so already supported on both Trusty and Xenial.""
+    description: "List of MAC (message authentication code) algorithms allowed. Default MACs available since OpenSSH 6.2 so already supported on both Trusty and Xenial."
