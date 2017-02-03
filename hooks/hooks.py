@@ -255,7 +255,7 @@ def copy_user_keys():
         # Skip if the user doesn't exist.
         try:
             pwnam = pwd.getpwnam(username)
-        except KeyError as e:
+        except KeyError:
             log("User {} does not exist, skipping.".format(username))
             continue
 
@@ -281,6 +281,7 @@ def install():
 @hooks.hook("config-changed")
 def config_changed():
     setup_udldap()
+
 
 if __name__ == "__main__":
     hooks.execute(sys.argv)
