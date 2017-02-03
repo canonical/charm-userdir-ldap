@@ -252,6 +252,7 @@ def reconfigure_sshd():
     with open(sshd_config + ".new", "r") as f:
         new = f.read()
     if new != current:
+        log("Updating sshd config and reloading sshd")
         os.rename(sshd_config, sshd_config + ".orig")
         os.rename(sshd_config + ".new", sshd_config)
         service_reload("ssh")
