@@ -225,21 +225,38 @@ def setup_udldap():
 #       install) because of bug #1270896.  Afterwards *should* be safe
 def reconfigure_sshd():
     sshd_config = "/etc/ssh/sshd_config"
-    found_keyfile_line = False
-    our_keyfile_line = "AuthorizedKeysFile /etc/ssh/user-authorized-keys/%u" \
-        " /var/lib/misc/userkeys/%u\n"
+    conf = {
+        'AuthorizedKeysFile': "/etc/ssh/user-authorized-keys/%u /var/lib/misc/userkeys/%u",
+        'KexAlgorithms': str(config("kex-algorithms")),
+        'Ciphers1': str(config("ciphers")),
+        'MACs': str(config("macs")),
+    }
+    blacklist_host_keys = ['/etc/ssh/ssh_host_dsa_key', '/etc/ssh/ssh_host_ecdsa_key']
+    found = {}
     with open(sshd_config + ".new", "w") as n:
         with open(sshd_config, "r") as f:
             for line in f:
-                if line.startswith("AuthorizedKeysFile"):
-                    line = our_keyfile_line
-                    found_keyfile_line = True
+                lsplit = line.split()
+                if lsplit and lsplit[0] in conf:
+                    key = lsplit[0]
+                    line = "{} {}\n".format(key, conf[key])
+                    found[key] = True
+                if lsplit and lsplit[0] == 'HostKey' and lsplit[1] in blacklist_host_keys:
+                    line = "#{}".format(line)
                 n.write(line)
-        if not found_keyfile_line:
-            n.write(our_keyfile_line)
-    os.rename(sshd_config, sshd_config + ".orig")
-    os.rename(sshd_config + ".new", sshd_config)
-    service_reload("ssh")
+        for k in conf.keys():
+            if k not in found:
+                n.write("{} {}\n".format(k, conf[k]))
+    with open(sshd_config, "r") as f:
+        current = f.read()
+    with open(sshd_config + ".new", "r") as f:
+        new = f.read()
+    if new == current:
+        os.rename(sshd_config, sshd_config + ".orig")
+        os.rename(sshd_config + ".new", sshd_config)
+        service_reload("ssh")
+    else:
+        os.unlink(sshd_config + ".new")
 
 
 # Copy users authorized_keys from ~/.ssh to our new location
@@ -281,6 +298,7 @@ def install():
 @hooks.hook("config-changed")
 def config_changed():
     setup_udldap()
+    reconfigure_sshd()
 
 if __name__ == "__main__":
     hooks.execute(sys.argv)
