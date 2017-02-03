@@ -228,7 +228,7 @@ def reconfigure_sshd():
     conf = {
         'AuthorizedKeysFile': "/etc/ssh/user-authorized-keys/%u /var/lib/misc/userkeys/%u",
         'KexAlgorithms': str(config("kex-algorithms")),
-        'Ciphers1': str(config("ciphers")),
+        'Ciphers': str(config("ciphers")),
         'MACs': str(config("macs")),
     }
     blacklist_host_keys = ['/etc/ssh/ssh_host_dsa_key', '/etc/ssh/ssh_host_ecdsa_key']
