@@ -36,12 +36,12 @@ options:
   kex-algorithms:
     type: string
     default: "curve25519-sha256@libssh.org"
-    description: "KEX (Key Exchange) algorithms allowed."
+    description: "KEX (Key Exchange) algorithms allowed. Default curve25519-sha256@libssh.org which has been available since OpenSSH 6.5 so already supported on both Trusty and Xenial."
   ciphers:
     type: string
     default: "chacha20-poly1305@openssh.com,aes256-gcm@openssh.com,aes128-gcm@openssh.com"
-    description: "List of ciphers allowed."
+    description: "List of ciphers allowed. Defaults chacha20-poly1305@openssh.com available since OpenSSH 6.5, aes256-gcm@openssh.com and aes128-gcm@openssh.com available since OpenSSH 6.2. All supported in both Trusty and Xenial."
   macs:
     type: string
     default: "umac-128-etm@openssh.com,hmac-sha2-512-etm@openssh.com,hmac-sha2-256-etm@openssh.com"
-    description: "List of MAC (message authentication code) algorithms allowed."
+    description: "List of MAC (message authentication code) algorithms allowed. Default MACs available since OpenSSH 6.2 so already supported on both Trusty and Xenial.""
