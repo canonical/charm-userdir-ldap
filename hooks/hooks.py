@@ -8,7 +8,6 @@ import shutil
 import socket
 import subprocess
 import sys
-from Cheetah.Template import Template
 
 local_copy = os.path.join(
     os.path.dirname(os.path.abspath(os.path.dirname(__file__))),
@@ -111,6 +110,8 @@ def update_hosts():
 
 
 def setup_udldap():
+    # we import this here so that we can install it first
+    from Cheetah.Template import Template
     # The postinst for apt/userdir-ldap needs a working `hostname -f`
     update_hosts()
     configure_sources(True, 'apt-repo-spec', 'apt-repo-keys')
@@ -289,8 +290,13 @@ def copy_user_keys():
             log("No authorized_keys file to migrate for {}".format(username))
 
 
+def install_cheetah():
+    apt_install('python-cheetah')
+
+
 @hooks.hook("install")
 def install():
+    install_cheetah()
     setup_udldap()
     copy_user_keys()
     reconfigure_sshd()
