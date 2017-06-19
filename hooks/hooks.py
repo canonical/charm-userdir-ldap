@@ -1,8 +1,8 @@
 #!/usr/bin/python
 
+import md5
 import os
 import pwd
-import random
 import re
 import shutil
 import socket
@@ -27,6 +27,7 @@ from charmhelpers.core.hookenv import (
     relation_ids,
     related_units,
     open_port,
+    local_unit,
 )  # noqa E402
 
 from charmhelpers.core.host import (
@@ -109,9 +110,24 @@ def update_hosts():
         os.rename(hosts_file + ".new", hosts_file)
 
 
+def cronsplay(string, interval=5):
+    offsets = []
+    # Hacky md5sum of string so offsets are the same when we re-run.
+    m = md5.new()
+    m.update(string)
+    # From the hex output, only use all the digits.
+    t = [s for s in list(m.hexdigest()) if s.isdigit()]
+    o = int(''.join(t)) % interval
+    offsets.append(str(o))
+    while True:
+        o = o + interval
+        if o >= 60:
+            break
+        offsets.append(str(o))
+    return ','.join(offsets)
+
+
 def setup_udldap():
-    # we import this here so that we can install it first
-    from Cheetah.Template import Template
     # The postinst for apt/userdir-ldap needs a working `hostname -f`
     update_hosts()
     configure_sources(True, 'apt-repo-spec', 'apt-repo-keys')
@@ -176,22 +192,11 @@ def setup_udldap():
         log("Initial ud-replicate run failed")
 
     # Setup cron with a little variation
-    minute1 = random.randint(0, 15)
-    minute2 = minute1 + 15
-    minute3 = minute1 + 30
-    minute4 = minute1 + 45
-    # Valid minutes for crontab is 0 - 59
-    if minute4 >= 60:
-        minute4 = 59
-    with open('%s/templates/ud-replicate.tmpl' % charm_dir, 'r') as t:
-        tmpl = Template(t.read())
-        tmpl.minute1 = minute1
-        tmpl.minute2 = minute2
-        tmpl.minute3 = minute3
-        tmpl.minute4 = minute4
-    # Overwrite the package supplied cron
     with open('/etc/cron.d/ud-replicate', 'w') as f:
-        f.write(str(tmpl))
+        f.write("# This file is managed by juju\n"
+                "# userdir-ldap updates\n"
+                "{} * * * * root /usr/bin/ud-replicate\n"
+                .format(cronsplay(local_unit(), 15)))
     # All done
     # subprocess.check_call(['bzr', 'add', '/etc'])
     # subprocess.check_call(['bzr', 'ci', '/etc', '-m',
