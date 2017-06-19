@@ -18,7 +18,7 @@ if os.path.exists(local_copy) and os.path.isdir(local_copy):
 from charmhelpers.fetch import (
     configure_sources,
     apt_install,
-)
+)  # noqa E402
 
 from charmhelpers.core.hookenv import (
     Hooks,
@@ -27,12 +27,12 @@ from charmhelpers.core.hookenv import (
     relation_ids,
     related_units,
     open_port,
-)
+)  # noqa E402
 
 from charmhelpers.core.host import (
     service_reload,
     write_file,
-)
+)  # noqa E402
 
 hooks = Hooks()
 
