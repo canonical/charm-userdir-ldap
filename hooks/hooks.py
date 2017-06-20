@@ -1,6 +1,6 @@
 #!/usr/bin/python
 
-import md5
+import binascii
 import os
 import pwd
 import re
@@ -112,12 +112,7 @@ def update_hosts():
 
 def cronsplay(string, interval=5):
     offsets = []
-    # Hacky md5sum of string so offsets are the same when we re-run.
-    m = md5.new()
-    m.update(string)
-    # From the hex output, only use all the digits.
-    t = [s for s in list(m.hexdigest()) if s.isdigit()]
-    o = int(''.join(t)) % interval
+    o = binascii.crc_hqx(string, 0) % interval
     offsets.append(str(o))
     while True:
         o = o + interval
