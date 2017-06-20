@@ -113,12 +113,9 @@ def update_hosts():
 def cronsplay(string, interval=5):
     offsets = []
     o = binascii.crc_hqx(string, 0) % interval
-    offsets.append(str(o))
-    while True:
-        o = o + interval
-        if o >= 60:
-            break
+    while o < 60:
         offsets.append(str(o))
+        o += interval
     return ','.join(offsets)
 
 
