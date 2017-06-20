@@ -18,7 +18,7 @@ if os.path.exists(local_copy) and os.path.isdir(local_copy):
 from charmhelpers.fetch import (
     configure_sources,
     apt_install,
-)
+)  # noqa E402
 
 from charmhelpers.core.hookenv import (
     Hooks,
@@ -27,12 +27,12 @@ from charmhelpers.core.hookenv import (
     relation_ids,
     related_units,
     open_port,
-)
+)  # noqa E402
 
 from charmhelpers.core.host import (
     service_reload,
     write_file,
-)
+)  # noqa E402
 
 hooks = Hooks()
 
@@ -234,20 +234,26 @@ def reconfigure_sshd():
     }
     blacklist_host_keys = ['/etc/ssh/ssh_host_dsa_key', '/etc/ssh/ssh_host_ecdsa_key']
     found = {}
-    with open(sshd_config + ".new", "w") as n:
-        with open(sshd_config, "r") as f:
-            for line in f:
-                lsplit = line.split()
-                if lsplit and lsplit[0] in conf:
-                    key = lsplit[0]
+    with open(sshd_config, "r") as f, open(sshd_config + ".new", "w") as new:
+        for line in f:
+            lsplit = line.split()
+            if not lsplit or lsplit[0].startswith('#'):
+                new.write(line)
+                continue
+            key = lsplit[0]
+            value = lsplit[1:]
+            if key in conf:
+                found[key] = True
+                if conf[key]:
                     line = "{} {}\n".format(key, conf[key])
-                    found[key] = True
-                if lsplit and lsplit[0] == 'HostKey' and lsplit[1] in blacklist_host_keys:
+                else:
                     line = "#{}".format(line)
-                n.write(line)
+            if key == 'HostKey' and value[0] in blacklist_host_keys:
+                line = "#{}".format(line)
+            new.write(line)
         for k in conf.keys():
-            if k not in found:
-                n.write("{} {}\n".format(k, conf[k]))
+            if k not in found and conf[k]:
+                new.write("{} {}\n".format(k, conf[k]))
     with open(sshd_config, "r") as f:
         current = f.read()
     with open(sshd_config + ".new", "r") as f:
