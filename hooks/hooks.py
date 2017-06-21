@@ -223,11 +223,14 @@ def setup_udldap():
 #       install) because of bug #1270896.  Afterwards *should* be safe
 def reconfigure_sshd():
     sshd_config = "/etc/ssh/sshd_config"
+    safe_kex_algos = ''.join(config("kex-algorithms").splitlines())
+    safe_ciphers = ''.join(config("ciphers").splitlines())
+    safe_macs = ''.join(config("macs").splitlines())
     conf = {
         'AuthorizedKeysFile': "/etc/ssh/user-authorized-keys/%u /var/lib/misc/userkeys/%u",
-        'KexAlgorithms': str(config("kex-algorithms")),
-        'Ciphers': str(config("ciphers")),
-        'MACs': str(config("macs")),
+        'KexAlgorithms': safe_kex_algos,
+        'Ciphers': safe_ciphers,
+        'MACs': safe_macs,
     }
     blacklist_host_keys = ['/etc/ssh/ssh_host_dsa_key', '/etc/ssh/ssh_host_ecdsa_key']
     found = {}
