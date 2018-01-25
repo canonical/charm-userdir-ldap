@@ -300,7 +300,7 @@ def install_cheetah():
     apt_install('python-cheetah')
 
 
-@hooks.hook("install")
+@hooks.hook("install", "install.real")
 def install():
     install_cheetah()
     setup_udldap()
