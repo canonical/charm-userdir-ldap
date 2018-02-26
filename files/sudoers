@@ -2,6 +2,10 @@
 # This file is Juju managed - do not edit by hand #
 #-------------------------------------------------#
 
+Defaults        env_reset
+Defaults        mail_badpass
+Defaults        secure_path="/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/snap/bin"
+
 # It seems like this ought to go without saying.
 root    ALL=(ALL) ALL
 
