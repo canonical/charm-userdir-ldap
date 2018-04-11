@@ -96,9 +96,14 @@ def update_hosts():
     if not any(userdb_host in line for line in hosts):
         hosts.append("{} {}\n".format(userdb_ip, userdb_host))
 
+    # Get the IP used to reach the default gateway
+    s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    s.connect(('9.9.9.9', 53))
+    default_ip = s.getsockname()[0]
+    s.close()
     if not any(hostname in line for line in hosts):
-        hosts.append("127.0.242.1 {} {}{}\n".format(fqdn, hostname,
-                                                    hostname_lxc))
+        hosts.append("{} {} {}{}\n".format(default_ip, fqdn, hostname,
+                                           hostname_lxc))
 
     # Write it out if anything changed
     if old_hosts != hosts:
