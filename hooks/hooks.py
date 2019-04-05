@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 
 import binascii
 import os
@@ -35,6 +35,15 @@ from charmhelpers.core.host import (
     write_file,
 )  # noqa E402
 
+
+try:
+    from python_hosts.hosts import Hosts, HostsEntry
+except ImportError:
+    configure_sources(True, 'apt-repo-spec', 'apt-repo-keys')
+    apt_install('python3-python-hosts', fatal=True)
+    from python_hosts.hosts import Hosts, HostsEntry
+
+
 hooks = Hooks()
 
 hook_dir = os.path.abspath(os.path.dirname(__file__))
@@ -54,19 +63,9 @@ charm_dir = os.path.dirname(hook_dir)
 """
 
 
-def update_hosts():
-    # Add the userdb host to /etc/hosts
-    userdb_host = str(config("userdb-host"))
-    userdb_ip = str(config("userdb-ip"))
-    hosts_file = "/etc/hosts"
-
-    log("userdb_host: {} userdb_ip: {}".format(userdb_host, userdb_ip))
-    # Read current hosts file
-    with open(hosts_file, "r") as f:
-        hosts = f.readlines()
-    # make a copy for later comparison
-    old_hosts = list(hosts)
-
+def my_hostnames():
+    """Return hostnames and fqdn for the local machine
+    """
     # We can't rely on socket.getfqdn() and still need to use os.uname() here
     # because MAAS creates multiple reverse DNS entries, e.g.:
     #   5.0.189.10.in-addr.arpa domain name pointer 10-189-0-5.bos01.scalingstack.
@@ -87,37 +86,56 @@ def update_hosts():
             if relation:
                 hostname_lxc = ' {}'.format(hostname)
                 hostname = relation[0][:relation[0].find('/')]
-
     if domain:
         fqdn = '{}.{}'.format(hostname, domain)
     else:
         fqdn = hostname
+    return hostname, hostname_lxc, fqdn
 
-    if not any(userdb_host in line for line in hosts):
-        hosts.append("{} {}\n".format(userdb_ip, userdb_host))
 
-    # Get the IP used to reach the default gateway
+def get_default_gw_ip():
+    """Get the IP used to reach the default gateway"""
     s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     s.connect(('9.9.9.9', 53))
     default_ip = s.getsockname()[0]
     s.close()
-    if not any(hostname in line for line in hosts):
-        hosts.append("{} {} {}{}\n".format(default_ip, fqdn, hostname,
-                                           hostname_lxc))
+    return default_ip
+
+
+def update_hosts():
+    """Update /etc/hosts file
+
+    Add entries for the userdb host as the userdir-ldap package hardcodes
+    this hostname. Add an entry for the local host to ensure hostname -f
+    works
+    """
+    userdb_host = str(config("userdb-host"))
+    userdb_ip = str(config("userdb-ip"))
+    hosts_file = "/etc/hosts"
+
+    log("userdb_host: {} userdb_ip: {}".format(userdb_host, userdb_ip))
+
+    hosts = Hosts(path=hosts_file)
+
+    hostname, hostname_lxc, fqdn = my_hostnames()
+    default_gw_ip = get_default_gw_ip()
+
+    this_host = HostsEntry(entry_type="ipv4", names=[fqdn, hostname, hostname_lxc], address=default_gw_ip)
+    userdb_host_obj = HostsEntry(entry_type="ipv4", names=[userdb_host], address=userdb_ip)
+
+    result = hosts.add([this_host, userdb_host_obj], force=True)
 
     # Write it out if anything changed
-    if old_hosts != hosts:
+    if any([result['ipv4_count'], result['ipv6_count'], result['replaced_count']]):
         log("Rewriting hosts file")
-        with open(hosts_file + ".new", 'w') as f:
-            for line in hosts:
-                f.write(line)
+        hosts.write(hosts_file + ".new")
         os.rename(hosts_file, hosts_file + ".orig")
         os.rename(hosts_file + ".new", hosts_file)
 
 
 def cronsplay(string, interval=5):
     offsets = []
-    o = binascii.crc_hqx(string, 0) % interval
+    o = binascii.crc_hqx(string.encode(), 0) % interval
     while o < 60:
         offsets.append(str(o))
         o += interval

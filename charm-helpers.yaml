@@ -1,5 +1,8 @@
+repo: https://github.com/juju/charm-helpers
 destination: hooks/charmhelpers
-branch: lp:charm-helpers
 include:
+    - context
+    - coordinator
     - core
     - fetch
+    - osplatform

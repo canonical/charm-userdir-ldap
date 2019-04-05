@@ -1,0 +1,43 @@
+ud-ldap-server:
+  files:
+    - path: /etc/nsswitch.conf
+      owner: root
+      group: root
+      mode: '644'
+    - path: /etc/ssh/sshd_config
+      owner: root
+      group: root
+      mode: '644'
+    - path: /etc/ssh/user-authorized-keys/ubuntu
+      owner: root
+      group: root
+      mode: '444'
+    - path:  /usr/local/sbin/snafflekeys
+      owner: root
+      group: root
+      mode: '755'
+    - path:  /root/.ssh
+      owner: root
+      group: root
+      mode: '700'
+    - path:  /root/.ssh/id_rsa
+      owner: root
+      group: root
+      mode: '600'
+    - path:  /root/.ssh/id_rsa.pub
+      owner: root
+      group: root
+      mode: '600'
+    - path:  /root/.ssh/known_hosts
+      owner: root
+      group: root
+      mode: '644'
+    - path: /etc/cron.d/ud-replicate
+      owner: root
+      group: root
+      mode: '644'
+    - path: /var/lib/misc/userkeys/foo
+      owner: foo
+      group: testgroup
+      mode: '600'
+

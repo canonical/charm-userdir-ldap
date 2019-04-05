@@ -1,0 +1,13 @@
+charm_name: userdir-ldap
+tests:
+  - tests.tests_userdir_ldap.UserdirLdapTest
+  - zaza.charm_tests.security.tests.FileOwnershipTest
+gate_bundles:
+  - xenial
+target_deploy_status:
+  ud-ldap-client:
+    workload-status: unknown
+    workload-status-message: ''
+  ud-ldap-server:
+    workload-status: unknown
+    workload-status-message: ''
