@@ -23,7 +23,7 @@ def gen_test_ssh_keys():
     tmp = Path(tempfile.mkdtemp())
     priv_file = tmp / "test_id_rsa"
     pub_file = tmp / "test_id_rsa.pub"
-    check_output(["ssh-keygen", "-t", "rsa", "-P", "", "-f", str(priv_file)])
+    check_output(["ssh-keygen", "-t", "rsa", "-b", "1024", "-P", "", "-f", str(priv_file)])
     return tmp, priv_file, pub_file
 
 

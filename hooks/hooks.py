@@ -48,9 +48,9 @@ hook_dir = os.path.abspath(os.path.dirname(__file__))
 charm_dir = os.path.dirname(hook_dir)
 
 
-class UserdirLdapException(Exception):
-    """Error in the userdir-ldap charm
-    """
+class UserdirLdapError(Exception):
+    """Error in the userdir-ldap charm"""
+    pass
 
 
 def update_hosts():
