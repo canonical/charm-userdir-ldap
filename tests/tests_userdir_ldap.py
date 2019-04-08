@@ -52,9 +52,10 @@ class UserdirLdapTest(unittest.TestCase):
         model.block_until_all_units_idle()
         model.set_application_config("ud-ldap-server", {"userdb-ip": cls.upstream_ip})
         model.block_until_all_units_idle()
-        model.run_on_unit(cls.server, "sudo ud-replicate")
         with priv_file.open("r") as p:
             model.set_application_config("ud-ldap-server", {"root-id-rsa": p.read()})
+        model.block_until_all_units_idle()
+        model.run_on_unit(cls.server, "sudo ud-replicate")
         model.block_until_all_units_idle()
         # block_until_file_has_contents doesn't like subord applications
         model.block_until_file_has_contents("server", "/var/lib/misc/server0.lxd/passwd.tdb", "foo")
@@ -98,3 +99,16 @@ class UserdirLdapTest(unittest.TestCase):
             getent_res = model.run_on_unit(self.server, "getent passwd {}".format(user_name))
             pwd_entry = getent_res["Stdout"].split(":")
             self.assertEqual(pwd_entry[0], user_name)
+
+    def test_ssh_login(self):
+        key_dir = "/etc/ssh/user-authorized-keys"
+        model.run_on_unit(self.server, "ssh-keyscan -t rsa localhost >> /root/.ssh/known_hosts")
+        for user_name in ("foo", "a.bc"):
+            model.run_on_unit(
+                self.server,
+                "sudo install -o {user_name} -g testgroup /root/.ssh/id_rsa.pub {key_dir}/{user_name}".format(
+                    key_dir=key_dir, user_name=user_name
+                ),
+            )
+            ssh_res = model.run_on_unit(self.server, "sudo ssh -l {} localhost whoami".format(user_name))
+            self.assertEqual(user_name, ssh_res["Stdout"].strip())

@@ -1,13 +1,12 @@
 #!/usr/bin/env python3
 
-import binascii
 import os
 import pwd
-import re
 import shutil
-import socket
 import subprocess
 import sys
+
+import utils
 
 local_copy = os.path.join(
     os.path.dirname(os.path.abspath(os.path.dirname(__file__))),
@@ -18,28 +17,27 @@ if os.path.exists(local_copy) and os.path.isdir(local_copy):
 from charmhelpers.fetch import (
     configure_sources,
     apt_install,
+    apt_update,
+    add_source,
 )  # noqa E402
 
 from charmhelpers.core.hookenv import (
     Hooks,
     config,
     log,
-    relation_ids,
-    related_units,
     open_port,
-    local_unit,
 )  # noqa E402
 
 from charmhelpers.core.host import (
     service_reload,
-    write_file,
 )  # noqa E402
 
 
 try:
     from python_hosts.hosts import Hosts, HostsEntry
 except ImportError:
-    configure_sources(True, 'apt-repo-spec', 'apt-repo-keys')
+    add_source('ppa:canonical-bootstack/public')
+    apt_update(fatal=True)
     apt_install('python3-python-hosts', fatal=True)
     from python_hosts.hosts import Hosts, HostsEntry
 
@@ -49,62 +47,10 @@ hooks = Hooks()
 hook_dir = os.path.abspath(os.path.dirname(__file__))
 charm_dir = os.path.dirname(hook_dir)
 
-"""
-
-== Actions
-
-- Add an /etc/hosts entry for the auth server
-- Configure nsswitch to use the ud-ldap databases as well as local ones
-  * in preference to local dbs, for groups!
-- Generate an ssh key for replication
-- Enforce some symlinks from /etc out into /var/lib/misc where the auth dbs
-  live
-
-"""
-
 
 class UserdirLdapException(Exception):
     """Error in the userdir-ldap charm
     """
-
-
-def my_hostnames():
-    """Return hostnames and fqdn for the local machine
-    """
-    # We can't rely on socket.getfqdn() and still need to use os.uname() here
-    # because MAAS creates multiple reverse DNS entries, e.g.:
-    #   5.0.189.10.in-addr.arpa domain name pointer 10-189-0-5.bos01.scalingstack.
-    #   5.0.189.10.in-addr.arpa domain name pointer bagon.bos01.scalingstack.
-    hostname = os.uname()[1]
-    dns_fqdn = socket.getfqdn()
-    if dns_fqdn.find('.') == -1:
-        domain = str(config("domain"))
-    else:
-        domain = dns_fqdn[dns_fqdn.find('.') + 1:]
-
-    # For LXC containers, service names are nicer, e.g.
-    #   vbuilder-manage-production-ppc64el.DOMAIN
-    hostname_lxc = ''
-    if re.search('^juju-machine-[0-9]+-lxc-', hostname):
-        for relid in relation_ids('general-info'):
-            relation = related_units(relid)
-            if relation:
-                hostname_lxc = ' {}'.format(hostname)
-                hostname = relation[0][:relation[0].find('/')]
-    if domain:
-        fqdn = '{}.{}'.format(hostname, domain)
-    else:
-        fqdn = hostname
-    return hostname, hostname_lxc, fqdn
-
-
-def get_default_gw_ip():
-    """Get the IP used to reach the default gateway"""
-    s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-    s.connect(('9.9.9.9', 53))
-    default_ip = s.getsockname()[0]
-    s.close()
-    return default_ip
 
 
 def update_hosts():
@@ -126,8 +72,8 @@ def update_hosts():
 
     hosts = Hosts(path=hosts_file)
 
-    hostname, hostname_lxc, fqdn = my_hostnames()
-    default_gw_ip = get_default_gw_ip()
+    hostname, hostname_lxc, fqdn = utils.my_hostnames()
+    default_gw_ip = utils.get_default_gw_ip()
 
     this_host = HostsEntry(entry_type="ipv4", names=[fqdn, hostname, hostname_lxc], address=default_gw_ip)
     userdb_host_obj = HostsEntry(entry_type="ipv4", names=[userdb_host], address=userdb_ip)
@@ -142,31 +88,13 @@ def update_hosts():
         os.rename(hosts_file + ".new", hosts_file)
 
 
-def cronsplay(string, interval=5):
-    offsets = []
-    o = binascii.crc_hqx(string.encode(), 0) % interval
-    while o < 60:
-        offsets.append(str(o))
-        o += interval
-    return ','.join(offsets)
-
-
 def setup_udldap():
     # The postinst for apt/userdir-ldap needs a working `hostname -f`
     update_hosts()
     configure_sources(True, 'apt-repo-spec', 'apt-repo-keys')
     # Need to install/update openssh-server from *-cat for pam_mkhomedir.so.
     apt_install('hostname libnss-db openssh-server userdir-ldap'.split())
-    if not os.path.exists('/root/.ssh'):
-        os.makedirs('/root/.ssh', mode=0o700)
-    shutil.copyfile('%s/files/nsswitch.conf' % charm_dir,
-                    '/etc/nsswitch.conf')
-    shutil.copyfile("%s/files/snafflekeys" % charm_dir,
-                    "/usr/local/sbin/snafflekeys")
-    os.chmod("/usr/local/sbin/snafflekeys", 0o755)
-    shutil.copyfile("%s/files/sudoers" % charm_dir,
-                    "/etc/sudoers")
-    os.chmod("/etc/sudoers", 0o440)
+    utils.copy_files(charm_dir)
 
     # If we don't assert these symlinks in /etc, ud-replicate
     # will write to them for us and trip up the local changes check.
@@ -184,47 +112,15 @@ def setup_udldap():
         os.system('/usr/bin/ssh-keyscan -t rsa userdb.internal \
             >> /root/.ssh/known_hosts')
 
-    # Install the supplied private key, if any.  And extract the
-    # public key, because it'd be weird to not have it alongside.
-    if config('root-id-rsa'):
-        write_file(
-            path='/root/.ssh/id_rsa',
-            content=str(config('root-id-rsa')),
-            perms=0o600,
-        )
-        root_id_rsa_pub = subprocess.check_output([
-            '/usr/bin/ssh-keygen',
-            '-f', '/root/.ssh/id_rsa',
-            '-y',
-        ])
-        write_file(
-            path='/root/.ssh/id_rsa.pub',
-            content=root_id_rsa_pub,
-            perms=0o600,
-        )
+    utils.handle_local_ssh_keys(config('root-id-rsa'))
+    utils.setup_cron()
 
-    # Generate a keypair if we don't already have one
-    if not os.path.exists('/root/.ssh/id_rsa'):
-        subprocess.check_call(['/usr/bin/ssh-keygen', '-q', '-t', 'rsa',
-                               '-b', '2048', '-N', '', '-f',
-                               '/root/.ssh/id_rsa'])
     # Force initial run
     # Continue on error (we may just have forgotten to add the host)
     try:
         subprocess.check_call(['/usr/bin/ud-replicate'])
     except subprocess.CalledProcessError:
         log("Initial ud-replicate run failed")
-
-    # Setup cron with a little variation
-    with open('/etc/cron.d/ud-replicate', 'w') as f:
-        f.write("# This file is managed by juju\n"
-                "# userdir-ldap updates\n"
-                "{} * * * * root /usr/bin/ud-replicate\n"
-                .format(cronsplay(local_unit(), 15)))
-    # All done
-    # subprocess.check_call(['bzr', 'add', '/etc'])
-    # subprocess.check_call(['bzr', 'ci', '/etc', '-m',
-    #                       '"', 'setup', 'ud-ldap', '"'])
 
     # handle template userdir-ldap hosts
     template_hostname = config('template-hostname')
