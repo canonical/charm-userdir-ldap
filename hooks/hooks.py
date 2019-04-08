@@ -63,6 +63,11 @@ charm_dir = os.path.dirname(hook_dir)
 """
 
 
+class UserdirLdapException(Exception):
+    """Error in the userdir-ldap charm
+    """
+
+
 def my_hostnames():
     """Return hostnames and fqdn for the local machine
     """
@@ -111,6 +116,10 @@ def update_hosts():
     """
     userdb_host = str(config("userdb-host"))
     userdb_ip = str(config("userdb-ip"))
+    if not (userdb_host and userdb_ip):
+        raise UserdirLdapException(
+            "Need userdb-host and userdb-ip configured, got '{}', '{}'".format(userdb_host, userdb_ip))
+
     hosts_file = "/etc/hosts"
 
     log("userdb_host: {} userdb_ip: {}".format(userdb_host, userdb_ip))

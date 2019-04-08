@@ -1,7 +1,11 @@
 #!/usr/bin/env python3
 
+
+import shutil
+import tempfile
 import unittest
 from pathlib import Path
+from subprocess import check_output
 
 import zaza.charm_lifecycle.utils as lifecycle_utils
 from zaza import model
@@ -10,6 +14,17 @@ from python_hosts import HostsEntry
 
 
 TESTDATA = Path(__file__).parent / "testdata"
+
+
+def gen_test_ssh_keys():
+    """Helper to create test ssh keys. No attempt at all is made
+    to keep them confident, do _not_ use outside testing
+    """
+    tmp = Path(tempfile.mkdtemp())
+    priv_file = tmp / "test_id_rsa"
+    pub_file = tmp / "test_id_rsa.pub"
+    check_output(["ssh-keygen", "-t", "rsa", "-P", "", "-f", str(priv_file)])
+    return tmp, priv_file, pub_file
 
 
 class UserdirLdapTest(unittest.TestCase):
@@ -21,8 +36,9 @@ class UserdirLdapTest(unittest.TestCase):
         cls.upstream = "upstream/0"
         cls.upstream_ip = model.get_app_ips("upstream")[0]
         cls.server_ip = model.get_app_ips("ud-ldap-server")[0]
+        cls.tmp, priv_file, pub_file = gen_test_ssh_keys()
         model.scp_to_unit(cls.upstream, str(TESTDATA / "server0.lxd.tar.gz"), "/tmp")
-        model.scp_to_unit(cls.upstream, str(TESTDATA / "root.pubkey"), "/tmp")
+        model.scp_to_unit(cls.upstream, str(pub_file), "/tmp/root.pubkey")
         model.run_on_unit(
             cls.upstream,
             (
@@ -37,9 +53,15 @@ class UserdirLdapTest(unittest.TestCase):
         model.set_application_config("ud-ldap-server", {"userdb-ip": cls.upstream_ip})
         model.block_until_all_units_idle()
         model.run_on_unit(cls.server, "sudo ud-replicate")
+        with priv_file.open("r") as p:
+            model.set_application_config("ud-ldap-server", {"root-id-rsa": p.read()})
         model.block_until_all_units_idle()
         # block_until_file_has_contents doesn't like subord applications
         model.block_until_file_has_contents("server", "/var/lib/misc/server0.lxd/passwd.tdb", "foo")
+
+    @classmethod
+    def tearDownClass(cls):
+        shutil.rmtree(cls.tmp)
 
     def cat_unit(self, unit, path):
         unit_res = model.run_on_unit(unit, "sudo cat {}".format(path))
