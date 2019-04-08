@@ -63,14 +63,13 @@ charm_dir = os.path.dirname(hook_dir)
 """
 
 
-class UserdirLdapException(Exception):
-    """Error in the userdir-ldap charm
-    """
+class UserdirLdapError(Exception):
+    """Error in the userdir-ldap charm"""
+    pass
 
 
 def my_hostnames():
-    """Return hostnames and fqdn for the local machine
-    """
+    """Return hostnames and fqdn for the local machine"""
     # We can't rely on socket.getfqdn() and still need to use os.uname() here
     # because MAAS creates multiple reverse DNS entries, e.g.:
     #   5.0.189.10.in-addr.arpa domain name pointer 10-189-0-5.bos01.scalingstack.
