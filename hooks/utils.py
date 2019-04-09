@@ -55,22 +55,22 @@ def copy_files(charm_dir):
     os.chmod("/etc/sudoers", 0o440)
 
 
-def handle_local_ssh_keys(root_priv_key):
+def handle_local_ssh_keys(root_priv_key, root_ssh_dir="/root/.ssh"):
     """Setup root ssh keys
 
     Install the supplied private key, if any.  And extract the
     public key, because it'd be weird to not have it alongside.
     If a private key is not available, generate a keypair
     """
-    if not os.path.exists("/root/.ssh"):
-        os.makedirs("/root/.ssh", mode=0o700)
+    if not os.path.exists(root_ssh_dir):
+        os.makedirs(root_ssh_dir, mode=0o700)
     if root_priv_key:
-        write_file(path="/root/.ssh/id_rsa", content=root_priv_key, perms=0o600)
-        root_id_rsa_pub = subprocess.check_output(["/usr/bin/ssh-keygen", "-f", "/root/.ssh/id_rsa", "-y"])
-        write_file(path="/root/.ssh/id_rsa.pub", content=root_id_rsa_pub, perms=0o600)
-    if not os.path.exists("/root/.ssh/id_rsa"):
+        write_file(path="{}/id_rsa".format(root_ssh_dir), content=root_priv_key, perms=0o600)
+        root_id_rsa_pub = subprocess.check_output(["/usr/bin/ssh-keygen", "-f", "{}/id_rsa".format(root_ssh_dir), "-y"])
+        write_file(path="{}/id_rsa.pub".format(root_ssh_dir), content=root_id_rsa_pub, perms=0o600)
+    if not os.path.exists("{}/id_rsa".format(root_ssh_dir)):
         subprocess.check_call(
-            ["/usr/bin/ssh-keygen", "-q", "-t", "rsa", "-b", "2048", "-N", "", "-f", "/root/.ssh/id_rsa"]
+            ["/usr/bin/ssh-keygen", "-q", "-t", "rsa", "-b", "2048", "-N", "", "-f", "{}/id_rsa".format(root_ssh_dir)]
         )
 
 

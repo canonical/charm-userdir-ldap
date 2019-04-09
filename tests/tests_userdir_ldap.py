@@ -1,11 +1,9 @@
 #!/usr/bin/env python3
-
-
+import os
 import shutil
-import tempfile
+import sys
 import unittest
 from pathlib import Path
-from subprocess import check_output
 
 import zaza.charm_lifecycle.utils as lifecycle_utils
 from zaza import model
@@ -13,19 +11,20 @@ from zaza import model
 from python_hosts import HostsEntry
 
 
+_path = os.path.dirname(os.path.realpath(__file__))
+_functest = os.path.abspath(os.path.join(_path, "../tests"))
+
+
+def _add_path(path):
+    if path not in sys.path:
+        sys.path.insert(1, path)
+
+
+_add_path(_functest)
+
+from test_utils import gen_test_ssh_keys  # noqa E402
+
 TESTDATA = Path(__file__).parent / "testdata"
-
-
-def gen_test_ssh_keys():
-    """Helper to create test ssh keys.
-
-    No attempt at all is made to keep them confident, do _not_ use outside testing
-    """
-    tmp = Path(tempfile.mkdtemp())
-    priv_file = tmp / "test_id_rsa"
-    pub_file = tmp / "test_id_rsa.pub"
-    check_output(["ssh-keygen", "-t", "rsa", "-b", "1024", "-P", "", "-f", str(priv_file)])
-    return tmp, priv_file, pub_file
 
 
 class UserdirLdapTest(unittest.TestCase):
@@ -93,7 +92,7 @@ class UserdirLdapTest(unittest.TestCase):
         privkey = self.cat_unit(self.server, "/root/.ssh/id_rsa")
         self.assertRegexpMatches(privkey, "^-----BEGIN RSA PRIVATE KEY-----")
         ubukey = self.cat_unit(self.server, "/etc/ssh/user-authorized-keys/ubuntu")
-        self.assertRegexpMatches(ubukey, "^ssh-rsa ")
+        self.assertRegex(ubukey, "^ssh-rsa ")
 
     def test_ud_replication(self):
         for user_name in ("foo", "a.bc"):
