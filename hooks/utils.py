@@ -5,8 +5,22 @@ import shutil
 import socket
 import subprocess
 
-from charmhelpers.core.hookenv import config, relation_ids, related_units, local_unit
+from charmhelpers.core.hookenv import config, relation_ids, related_units, local_unit, log, DEBUG
 from charmhelpers.core.host import write_file
+
+
+def lxc_hostname(hostname):
+    # For LXC containers, service names are nicer, e.g.
+    #   vbuilder-manage-production-ppc64el.DOMAIN
+    hostname_lxc = ""
+    if re.search("^juju-machine-[0-9]+-lxc-", hostname):
+        for relid in relation_ids("general-info"):
+            relation = related_units(relid)
+            if relation:
+                hostname_lxc = hostname
+                hostname = relation[0][: relation[0].find("/")]
+    log("hostname: {}, hostname_lxc: {}".format(hostname, hostname_lxc), level=DEBUG)
+    return hostname, hostname_lxc
 
 
 def my_hostnames():
@@ -21,21 +35,11 @@ def my_hostnames():
         domain = str(config("domain"))
     else:
         domain = dns_fqdn[dns_fqdn.find(".") + 1:]
-
-    # For LXC containers, service names are nicer, e.g.
-    #   vbuilder-manage-production-ppc64el.DOMAIN
-    hostname_lxc = ""
-    if re.search("^juju-machine-[0-9]+-lxc-", hostname):
-        for relid in relation_ids("general-info"):
-            relation = related_units(relid)
-            if relation:
-                hostname_lxc = " {}".format(hostname)
-                hostname = relation[0][: relation[0].find("/")]
     if domain:
         fqdn = "{}.{}".format(hostname, domain)
     else:
         fqdn = hostname
-    return hostname, hostname_lxc, fqdn
+    return hostname, fqdn
 
 
 def get_default_gw_ip():
@@ -51,8 +55,8 @@ def copy_files(charm_dir):
     shutil.copyfile("%s/files/nsswitch.conf" % charm_dir, "/etc/nsswitch.conf")
     shutil.copyfile("%s/files/snafflekeys" % charm_dir, "/usr/local/sbin/snafflekeys")
     os.chmod("/usr/local/sbin/snafflekeys", 0o755)
-    shutil.copyfile("%s/files/sudoers" % charm_dir, "/etc/sudoers")
-    os.chmod("/etc/sudoers", 0o440)
+    shutil.copy("%s/files/80-adm-sudoers" % charm_dir, "/etc/sudoers.d")
+    os.chmod("/etc/sudoers.d/80-adm-sudoers", 0o440)
 
 
 def handle_local_ssh_keys(root_priv_key, root_ssh_dir="/root/.ssh"):

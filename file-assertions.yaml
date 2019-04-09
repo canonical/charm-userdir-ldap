@@ -12,6 +12,10 @@ ud-ldap-server:
       owner: root
       group: root
       mode: '444'
+    - path: /etc/sudoers.d/80-adm-sudoers
+      owner: root
+      group: root
+      mode: '440'
     - path:  /usr/local/sbin/snafflekeys
       owner: root
       group: root

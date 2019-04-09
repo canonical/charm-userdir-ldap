@@ -72,7 +72,8 @@ def update_hosts():
 
     hosts = Hosts(path=hosts_file)
 
-    hostname, hostname_lxc, fqdn = utils.my_hostnames()
+    hostname, fqdn = utils.my_hostnames()
+    hostname, hostname_lxc = utils.lxc_hostname(hostname)
     default_gw_ip = utils.get_default_gw_ip()
 
     this_host = HostsEntry(entry_type="ipv4", names=[fqdn, hostname, hostname_lxc], address=default_gw_ip)

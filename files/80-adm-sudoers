@@ -2,13 +2,6 @@
 # This file is Juju managed - do not edit by hand #
 #-------------------------------------------------#
 
-Defaults        env_reset
-Defaults        mail_badpass
-Defaults        secure_path="/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/snap/bin"
-
-# It seems like this ought to go without saying.
-root    ALL=(ALL) ALL
-
 # Our userdir-ldap uses group adm to control admin access to all systems
 %adm    ALL=(ALL) ALL
 %adm ALL=(ALL) NOPASSWD:/usr/bin/ud-replicate "", \
@@ -25,6 +18,3 @@ root    ALL=(ALL) ALL
          (ALL) NOPASSWD:!/usr/bin/bzr shelve, \
          (ALL) NOPASSWD:!/usr/bin/bzr unshelve, \
          (nagios) NOPASSWD:/usr/bin/tee /var/lib/nagios/cat-packages-current.txt
-
-# All per-machine configurations should be dropped as stubs in sudoers.d
-#includedir /etc/sudoers.d
