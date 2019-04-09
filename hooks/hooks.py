@@ -63,7 +63,7 @@ def update_hosts():
     userdb_host = str(config("userdb-host"))
     userdb_ip = str(config("userdb-ip"))
     if not (userdb_host and userdb_ip):
-        raise UserdirLdapException(
+        raise UserdirLdapError(
             "Need userdb-host and userdb-ip configured, got '{}', '{}'".format(userdb_host, userdb_ip))
 
     hosts_file = "/etc/hosts"
