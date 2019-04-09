@@ -17,8 +17,9 @@ TESTDATA = Path(__file__).parent / "testdata"
 
 
 def gen_test_ssh_keys():
-    """Helper to create test ssh keys. No attempt at all is made
-    to keep them confident, do _not_ use outside testing
+    """Helper to create test ssh keys.
+
+    No attempt at all is made to keep them confident, do _not_ use outside testing
     """
     tmp = Path(tempfile.mkdtemp())
     priv_file = tmp / "test_id_rsa"
