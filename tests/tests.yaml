@@ -4,6 +4,7 @@ tests:
   - zaza.charm_tests.security.tests.FileOwnershipTest
 gate_bundles:
   - xenial
+  - bionic
 target_deploy_status:
   ud-ldap-client:
     workload-status: unknown

@@ -1,4 +1,4 @@
-series: xenial
+series: bionic
 description: "userdir-ldap charm test bundle"
 machines:
   "0":
@@ -30,21 +30,21 @@ applications:
     to:
       - "2"
   ud-ldap-server:
-    series: xenial
+    series: bionic
     charm: "../../."
     num_units: 0
     options:
-      apt-repo-spec: "deb http://archive.admin.canonical.com/ubuntu xenial-cat main"
+      apt-repo-spec: "deb http://archive.admin.canonical.com/ubuntu bionic-cat main"
       apt-repo-keys: "40976EAF437D05B5"
       domain: "lxd"
       userdb-host: "userdb.internal"
       userdb-ip: "127.0.0.1"
   ud-ldap-client:
-    series: xenial
+    series: bionic
     charm: "../../."
     num_units: 0
     options:
-      apt-repo-spec: "deb http://archive.admin.canonical.com/ubuntu xenial-cat main"
+      apt-repo-spec: "deb http://archive.admin.canonical.com/ubuntu bionic-cat main"
       apt-repo-keys: "40976EAF437D05B5"
       domain: "lxd"
       userdb-host: "userdb.internal"
