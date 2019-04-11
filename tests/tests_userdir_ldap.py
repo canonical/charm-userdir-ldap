@@ -33,6 +33,7 @@ class UserdirLdapTest(unittest.TestCase):
         cls.model_name = model.get_juju_model()
         cls.test_config = lifecycle_utils.get_charm_config()
         cls.server = "ud-ldap-server/0"
+        cls.client = "ud-ldap-client/0"
         cls.upstream = "upstream/0"
         cls.upstream_ip = model.get_app_ips("upstream")[0]
         cls.server_ip = model.get_app_ips("ud-ldap-server")[0]
@@ -44,6 +45,7 @@ class UserdirLdapTest(unittest.TestCase):
             (
                 "sudo mkdir -p /var/cache/userdir-ldap/hosts; "
                 "sudo tar xf /tmp/server0.lxd.tar.gz -C /var/cache/userdir-ldap/hosts ;"
+                "cd /var/cache/userdir-ldap/hosts ; sudo cp -r server0.lxd bootstack-template.internal; "
                 "sudo useradd sshdist ; sudo install -o sshdist -g sshdist -m 0700 -d /home/sshdist/.ssh ;"
                 "sudo chown sshdist:sshdist -R /var/cache/userdir-ldap/hosts ;"
                 "sudo install -o sshdist -g sshdist /tmp/root.pubkey /home/sshdist/.ssh/authorized_keys"
@@ -55,10 +57,14 @@ class UserdirLdapTest(unittest.TestCase):
         with priv_file.open("r") as p:
             model.set_application_config("ud-ldap-server", {"root-id-rsa": p.read()})
         model.block_until_all_units_idle()
-        model.run_on_unit(cls.server, "sudo ud-replicate")
+        model.run_on_unit(
+            cls.server, "sudo ud-replicate; sudo /usr/local/sbin/rsync_userdata.py < /var/lib/misc/rsync_userdata.cfg"
+        )
         model.block_until_all_units_idle()
         # block_until_file_has_contents doesn't like subord applications
         model.block_until_file_has_contents("server", "/var/lib/misc/server0.lxd/passwd.tdb", "foo")
+        model.run_on_unit(cls.client, "sudo ud-replicate")
+        model.block_until_all_units_idle()
 
     @classmethod
     def tearDownClass(cls):
@@ -86,6 +92,12 @@ class UserdirLdapTest(unittest.TestCase):
         self.assertTrue(self.upstream_ip in host_dict, "Expect upstream ip in /etc/hosts")
         self.assertEqual(host_dict[self.upstream_ip].names, ["userdb.internal"], "Expect upstream name in /etc/hosts")
 
+    def test_client_etc_hosts(self):
+        host_dict = self.unit_host_dict(self.client)
+        self.assertEqual(
+            host_dict[self.server_ip].names, ["userdb.internal"], "Expect server0 ip as userdb in /etc/hosts"
+        )
+
     def test_ssh_keys(self):
         pubkey = self.cat_unit(self.server, "/root/.ssh/id_rsa.pub")
         self.assertRegexpMatches(pubkey, "^ssh-rsa ")
@@ -100,15 +112,21 @@ class UserdirLdapTest(unittest.TestCase):
             pwd_entry = getent_res["Stdout"].split(":")
             self.assertEqual(pwd_entry[0], user_name)
 
-    def test_ssh_login(self):
+    def ssh_login(self, unit):
         key_dir = "/etc/ssh/user-authorized-keys"
-        model.run_on_unit(self.server, "ssh-keyscan -t rsa localhost >> /root/.ssh/known_hosts")
+        model.run_on_unit(unit, "ssh-keyscan -t rsa localhost >> /root/.ssh/known_hosts")
         for user_name in ("foo", "a.bc"):
             model.run_on_unit(
-                self.server,
+                unit,
                 "sudo install -o {user_name} -g testgroup /root/.ssh/id_rsa.pub {key_dir}/{user_name}".format(
                     key_dir=key_dir, user_name=user_name
                 ),
             )
-            ssh_res = model.run_on_unit(self.server, "sudo ssh -l {} localhost whoami".format(user_name))
+            ssh_res = model.run_on_unit(unit, "sudo ssh -l {} localhost whoami".format(user_name))
             self.assertEqual(user_name, ssh_res["Stdout"].strip())
+
+    def test_ssh_login_server(self):
+        self.ssh_login(self.server)
+
+    def test_ssh_login_client(self):
+        self.ssh_login(self.client)

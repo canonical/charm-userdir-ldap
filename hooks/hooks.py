@@ -1,12 +1,9 @@
 #!/usr/bin/env python3
-
 import os
 import pwd
 import shutil
 import subprocess
 import sys
-
-import utils
 
 local_copy = os.path.join(
     os.path.dirname(os.path.abspath(os.path.dirname(__file__))),
@@ -14,33 +11,26 @@ local_copy = os.path.join(
 if os.path.exists(local_copy) and os.path.isdir(local_copy):
     sys.path.insert(0, local_copy)
 
-from charmhelpers.fetch import (
-    configure_sources,
-    apt_install,
-    apt_update,
-    add_source,
-)  # noqa E402
+from charmhelpers.fetch import configure_sources, apt_install  # noqa E402
 
 from charmhelpers.core.hookenv import (
     Hooks,
     config,
     log,
     open_port,
+    relation_ids,
+    related_units,
+    relation_set,
+    relation_get,
+    DEBUG,
+    iter_units_for_relation_name,
+    ingress_address,
 )  # noqa E402
 
-from charmhelpers.core.host import (
-    service_reload,
-)  # noqa E402
+from charmhelpers.core.host import service_reload, mkdir  # noqa E402
+from charmhelpers.core import unitdata  # noqa E402
 
-
-try:
-    from python_hosts.hosts import Hosts, HostsEntry
-except ImportError:
-    add_source('ppa:canonical-bootstack/public')
-    apt_update(fatal=True)
-    apt_install('python3-python-hosts', fatal=True)
-    from python_hosts.hosts import Hosts, HostsEntry
-
+import utils  # noqa E402
 
 hooks = Hooks()
 
@@ -48,50 +38,11 @@ hook_dir = os.path.abspath(os.path.dirname(__file__))
 charm_dir = os.path.dirname(hook_dir)
 
 
-class UserdirLdapError(Exception):
-    """Error in the userdir-ldap charm"""
-    pass
-
-
-def update_hosts():
-    """Update /etc/hosts file
-
-    Add entries for the userdb host as the userdir-ldap package hardcodes
-    this hostname. Add an entry for the local host to ensure hostname -f
-    works
-    """
-    userdb_host = str(config("userdb-host"))
-    userdb_ip = str(config("userdb-ip"))
-    if not (userdb_host and userdb_ip):
-        raise UserdirLdapError(
-            "Need userdb-host and userdb-ip configured, got '{}', '{}'".format(userdb_host, userdb_ip))
-
-    hosts_file = "/etc/hosts"
-
-    log("userdb_host: {} userdb_ip: {}".format(userdb_host, userdb_ip))
-
-    hosts = Hosts(path=hosts_file)
-
-    hostname, fqdn = utils.my_hostnames()
-    hostname, hostname_lxc = utils.lxc_hostname(hostname)
-    default_gw_ip = utils.get_default_gw_ip()
-
-    this_host = HostsEntry(entry_type="ipv4", names=[fqdn, hostname, hostname_lxc], address=default_gw_ip)
-    userdb_host_obj = HostsEntry(entry_type="ipv4", names=[userdb_host], address=userdb_ip)
-
-    result = hosts.add([this_host, userdb_host_obj], force=True)
-
-    # Write it out if anything changed
-    if any([result['ipv4_count'], result['ipv6_count'], result['replaced_count']]):
-        log("Rewriting hosts file")
-        hosts.write(hosts_file + ".new")
-        os.rename(hosts_file, hosts_file + ".orig")
-        os.rename(hosts_file + ".new", hosts_file)
-
-
 def setup_udldap():
+    log("setup_udldap, config: {}".format(config()), level=DEBUG)
     # The postinst for apt/userdir-ldap needs a working `hostname -f`
-    update_hosts()
+    userdb_ip = utils.determine_userdb_ip()
+    utils.update_hosts(config("userdb-host"), userdb_ip)
     configure_sources(True, 'apt-repo-spec', 'apt-repo-keys')
     # Need to install/update openssh-server from *-cat for pam_mkhomedir.so.
     apt_install('hostname libnss-db openssh-server userdir-ldap'.split())
@@ -103,6 +54,9 @@ def setup_udldap():
         os.symlink('/var/lib/misc/ssh-rsa-shadow', '/etc/ssh/ssh-rsa-shadow')
     if not os.path.islink('/etc/ssh/ssh_known_hosts'):
         os.symlink('/var/lib/misc/ssh_known_hosts', '/etc/ssh/ssh_known_hosts')
+
+    utils.handle_local_ssh_keys(config('root-id-rsa'))
+
     # The first run of ud-replicate requires that
     # userdb.internal's host key be trusted.
     seed_known_hosts = config("userdb-known-hosts")
@@ -110,11 +64,9 @@ def setup_udldap():
         with open('/root/.ssh/known_hosts', 'a') as f:
             f.write('%s\n' % str(seed_known_hosts))
     else:
-        os.system('/usr/bin/ssh-keyscan -t rsa userdb.internal \
-            >> /root/.ssh/known_hosts')
+        utils.update_ssh_known_hosts(["userdb.internal", userdb_ip])
 
-    utils.handle_local_ssh_keys(config('root-id-rsa'))
-    utils.setup_cron()
+    utils.setup_udreplicate_cron()
 
     # Force initial run
     # Continue on error (we may just have forgotten to add the host)
@@ -223,6 +175,57 @@ def copy_user_keys():
             os.chown(dst_keyfile, 0, 0)
         else:
             log("No authorized_keys file to migrate for {}".format(username))
+
+
+@hooks.hook("udconsume-relation-departed", "udconsume-relation-broken")
+@hooks.hook("udconsume-relation-joined", "udconsume-relation-changed")
+def udconsume_data_rel():
+    addresses = set(ingress_address(rid=u.rid, unit=u.unit) for u in iter_units_for_relation_name("udconsume"))
+    if not addresses:
+        log("No udconsume rels anymore")
+        unitdata.kv().unset("udconsume_upstream")
+        utils.update_hosts(config("userdb-host"), config("userdb-ip"))
+        return
+    userdb_ip = sorted(list(addresses))[0]  # Pick a deterministic address
+    log("udconsume addresses: {}, picking {} for userdb-ip".format(addresses, userdb_ip), level=DEBUG)
+    unitdata.kv().set("udconsume_upstream", userdb_ip)
+    utils.update_hosts(config("userdb-host"), userdb_ip)
+    with open('/root/.ssh/id_rsa.pub') as fp:
+        # We should have root sshkeys set up at install time
+        pub_key = fp.read()
+    _, fqdn = utils.my_hostnames()
+    if not (pub_key and fqdn):
+        raise utils.UserdirLdapError("Need root pubkey and fqdn, got: {}, {}".format(pub_key, fqdn))
+    relation_set(relation_settings={
+        'pub_key': pub_key,
+        'fqdn': fqdn,
+        'template_host': config('template-hostname'),
+    })
+    log("Sent relinfo: pub_key {}; fqdn: {} ".format(pub_key, fqdn), level=DEBUG)
+    utils.update_ssh_known_hosts(["userdb.internal", userdb_ip])
+
+
+@hooks.hook("udprovide-relation-departed", "udprovide-relation-broken")
+@hooks.hook("udprovide-relation-joined", "udprovide-relation-changed")
+def udprovide_rel():
+    ud_units = set()
+    log("udprovide relation_get: {}".format(relation_get()), level=DEBUG)
+    for rid in relation_ids('udprovide'):
+        for unit in related_units(relid=rid):
+            pub_key = relation_get('pub_key', unit, rid)
+            fqdn = relation_get('fqdn', unit, rid)
+            template_host = relation_get('template_host', unit, rid)
+            host = template_host or fqdn
+            if pub_key and host:
+                ud_units.add((pub_key, host))
+
+    log("num ud_units: {}".format(len(ud_units)), level=DEBUG)
+    utils.ensure_user("sshdist", "/var/lib/misc")
+    utils.write_authkeys("sshdist", ud_units)
+    mkdir("/var/cache/userdir-ldap/hosts", perms=0o755)
+    utils.write_rsync_cfg([h for _k, h in ud_units])
+    utils.run_rsync_userdata()
+    utils.setup_rsync_userdata_cron()
 
 
 def install_cheetah():
