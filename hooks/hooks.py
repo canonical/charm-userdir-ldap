@@ -180,11 +180,24 @@ def copy_user_keys():
 @hooks.hook("udconsume-relation-departed", "udconsume-relation-broken")
 @hooks.hook("udconsume-relation-joined", "udconsume-relation-changed")
 def udconsume_data_rel():
+    """Set up the consumer/client side of the relation
+
+    For new relations: we have an incoming relation from a userdata
+    producer (server).  Need to store the producer address to sync
+    data later from, and send it our credentials to get access. We
+    also send the producer the hostname we want to sync data for. This
+    is could be our actual hostname but typically will be a template
+    hostname.
+
+    For departing relations, we unset the persisted producer address,
+    and re-instate the original userdb.internal user data source
+    """
     addresses = set(ingress_address(rid=u.rid, unit=u.unit) for u in iter_units_for_relation_name("udconsume"))
     if not addresses:
         log("No udconsume rels anymore")
         unitdata.kv().unset("udconsume_upstream")
         utils.update_hosts(config("userdb-host"), config("userdb-ip"))
+        utils.update_ssh_known_hosts(["userdb.internal", config("userdb-ip")])
         return
     userdb_ip = sorted(list(addresses))[0]  # Pick a deterministic address
     log("udconsume addresses: {}, picking {} for userdb-ip".format(addresses, userdb_ip), level=DEBUG)
@@ -202,12 +215,19 @@ def udconsume_data_rel():
         'template_host': config('template-hostname'),
     })
     log("Sent relinfo: pub_key {}; fqdn: {} ".format(pub_key, fqdn), level=DEBUG)
+    # Add/update the ssh host key of our sync source (the newly related producer)
     utils.update_ssh_known_hosts(["userdb.internal", userdb_ip])
 
 
 @hooks.hook("udprovide-relation-departed", "udprovide-relation-broken")
 @hooks.hook("udprovide-relation-joined", "udprovide-relation-changed")
 def udprovide_rel():
+    """Set up the producer/server side of the relation
+
+    Iterate through the related consumer/client units, install their
+    ssh pubkeys and set up the rsync job for those. Also, kick off an
+    initial sync.
+    """
     ud_units = set()
     log("udprovide relation_get: {}".format(relation_get()), level=DEBUG)
     for rid in relation_ids('udprovide'):

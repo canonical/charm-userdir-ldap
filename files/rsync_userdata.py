@@ -39,8 +39,24 @@ def rsync_ud(key_file, server_user, remote_dir, local_dir):
     )
 
 
+class RsyncUserdataError(Exception):
+    """Error in rsync_userdata"""
+
+    pass
+
+
+def validate(cfg):
+    keys = set(cfg.keys())
+    expected = {"host_dirs", "local_dir", "key_file", "dist_user"}
+    if not expected <= keys:
+        raise RsyncUserdataError("Need {} keys in config, got: {}".format(expected, keys))
+    if not isinstance(cfg["host_dirs"], list):
+        raise RsyncUserdataError("Need a list for host_dirs, got: {}".format(cfg["host_dirs"]))
+
+
 def main():
     cfg = json.load(sys.stdin)
+    validate(cfg)
     host_dirs = cfg["host_dirs"]
     print("Rsync host_dirs: {}".format(host_dirs))
     for host_dir in host_dirs:
