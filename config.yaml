@@ -1,11 +1,11 @@
 options:
   apt-repo-spec:
     type: string
-    default: null
+    default: "deb http://archive.admin.canonical.com/ubuntu xenial-cat main"
     description: "Apt repository to install userdir-ldap from."
   apt-repo-keys:
     type: string
-    default: null
+    default: "40976EAF437D05B5"
     description: "Apt repository key, typically needed for apt-repo-spec."
   root-id-rsa:
     type: string

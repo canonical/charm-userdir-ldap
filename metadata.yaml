@@ -7,10 +7,10 @@ description: |
   Installs userdir-ldap and configures it.
 provides:
   udprovide:
-    interface: userdata
+    interface: udldap-userdata
 requires:
   udconsume:
-    interface: userdata
+    interface: udldap-userdata
   general-info:
     interface: juju-info
     scope: container

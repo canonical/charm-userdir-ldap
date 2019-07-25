@@ -34,8 +34,6 @@ applications:
     charm: "../../."
     num_units: 0
     options:
-      apt-repo-spec: "deb http://archive.admin.canonical.com/ubuntu xenial-cat main"
-      apt-repo-keys: "40976EAF437D05B5"
       domain: "lxd"
       userdb-host: "userdb.internal"
       userdb-ip: "127.0.0.1"
@@ -44,8 +42,6 @@ applications:
     charm: "../../."
     num_units: 0
     options:
-      apt-repo-spec: "deb http://archive.admin.canonical.com/ubuntu xenial-cat main"
-      apt-repo-keys: "40976EAF437D05B5"
       domain: "lxd"
       userdb-host: "userdb.internal"
       template-hostname: "bootstack-template.internal"
@@ -56,5 +52,3 @@ relations:
     - "ud-ldap-client"
   - - "ud-ldap-server:udprovide"
     - "ud-ldap-client:udconsume"
-
-      

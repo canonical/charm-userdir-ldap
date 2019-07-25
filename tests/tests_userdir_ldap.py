@@ -102,7 +102,7 @@ class UserdirLdapTest(unittest.TestCase):
         pubkey = self.cat_unit(self.server, "/root/.ssh/id_rsa.pub")
         self.assertRegexpMatches(pubkey, "^ssh-rsa ")
         privkey = self.cat_unit(self.server, "/root/.ssh/id_rsa")
-        self.assertRegexpMatches(privkey, "^-----BEGIN RSA PRIVATE KEY-----")
+        self.assertRegexpMatches(privkey, "^-----BEGIN OPENSSH PRIVATE KEY-----")
         ubukey = self.cat_unit(self.server, "/etc/ssh/user-authorized-keys/ubuntu")
         self.assertRegex(ubukey, "^ssh-rsa ")
 
@@ -130,3 +130,9 @@ class UserdirLdapTest(unittest.TestCase):
 
     def test_ssh_login_client(self):
         self.ssh_login(self.client)
+
+    def test_rsync_userdata_leftover(self):
+        unit_res = model.run_on_unit(
+            self.server,
+            "test -e /var/cache/userdir-ldap/hosts.deleteme || echo absent")
+        self.assertEqual(unit_res["Stdout"].strip(), "absent")

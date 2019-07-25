@@ -177,8 +177,12 @@ def copy_user_keys():
             log("No authorized_keys file to migrate for {}".format(username))
 
 
-@hooks.hook("udconsume-relation-departed", "udconsume-relation-broken")
-@hooks.hook("udconsume-relation-joined", "udconsume-relation-changed")
+@hooks.hook(
+    "udconsume-relation-departed",
+    "udconsume-relation-broken",
+    "udconsume-relation-joined",
+    "udconsume-relation-changed"
+)
 def udconsume_data_rel():
     """Set up the consumer/client side of the relation
 
@@ -208,7 +212,7 @@ def udconsume_data_rel():
         pub_key = fp.read()
     _, fqdn = utils.my_hostnames()
     if not (pub_key and fqdn):
-        raise utils.UserdirLdapError("Need root pubkey and fqdn, got: {}, {}".format(pub_key, fqdn))
+        raise utils.UserdirLdapError("Need root pubkey and fqdn, got: {!r}, {!r}".format(pub_key, fqdn))
     relation_set(relation_settings={
         'pub_key': pub_key,
         'fqdn': fqdn,
@@ -219,8 +223,11 @@ def udconsume_data_rel():
     utils.update_ssh_known_hosts(["userdb.internal", userdb_ip])
 
 
-@hooks.hook("udprovide-relation-departed", "udprovide-relation-broken")
-@hooks.hook("udprovide-relation-joined", "udprovide-relation-changed")
+@hooks.hook(
+    "udprovide-relation-departed",
+    "udprovide-relation-broken",
+    "udprovide-relation-joined", "udprovide-relation-changed"
+)
 def udprovide_rel():
     """Set up the producer/server side of the relation
 

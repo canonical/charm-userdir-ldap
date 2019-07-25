@@ -34,7 +34,7 @@ def ensure_user(user, home):
 
 def write_authkeys(username, ud_units):
     auth_file = "/etc/ssh/user-authorized-keys/{}".format(username)
-    tmpl = 'command="rsync --server --sender -pr . ' '/var/cache/userdir-ldap/hosts/{host}" {pub_key}\n'
+    tmpl = 'command="rsync --server --sender -pr . /var/cache/userdir-ldap/hosts/{host}" {pub_key}\n'
     content = "\n".join(tmpl.format(pub_key=k, host=h) for k, h in ud_units)
     write_file(path=auth_file, content=content, owner=username)
 
@@ -156,7 +156,7 @@ def setup_udreplicate_cron():
 
 
 def setup_rsync_userdata_cron():
-    """Setup rsync_userdata.y cron with a little variation"""
+    """Setup rsync_userdata.py cron with a little variation"""
     with open("/etc/cron.d/rsync_userdata", "w") as f:
         f.write(
             "# This file is managed by juju\n"

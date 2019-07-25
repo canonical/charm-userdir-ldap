@@ -1,7 +1,7 @@
 charm_name: userdir-ldap
 tests:
   - tests.tests_userdir_ldap.UserdirLdapTest
-  - zaza.charm_tests.security.tests.FileOwnershipTest
+  - zaza.openstack.charm_tests.security.tests.FileOwnershipTest
 gate_bundles:
   - xenial
   - bionic
