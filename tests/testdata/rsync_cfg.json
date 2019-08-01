@@ -1,0 +1,7 @@
+{
+    "key_file": "/root/.ssh/id_rsa",
+    "dist_user": "sshdist",
+    "local_dir": "/var/cache/userdir-ldap/hosts", 
+    "local_overrides": ["/tmp/test-keys"],
+    "host_dirs": ["bootstack-template.internal"]
+}
