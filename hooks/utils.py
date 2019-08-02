@@ -52,14 +52,12 @@ def write_rsync_cfg(hosts):
         "local_dir": "/var/cache/userdir-ldap/hosts",
         "local_overrides": [],
     }
-    existing_cfg = {}
     try:
         # Load existing config if any
         fp = open("/var/lib/misc/rsync_userdata.cfg", "r")
-        existing_cfg = json.load(fp)
+        base_cfg.update(json.load(fp))
     except FileNotFoundError:
         pass
-    base_cfg.update(existing_cfg)
     base_cfg["host_dirs"] = hosts
     with open("/var/lib/misc/rsync_userdata.cfg", "w") as fp:
         json.dump(base_cfg, fp)
