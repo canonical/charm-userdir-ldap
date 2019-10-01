@@ -136,3 +136,14 @@ class UserdirLdapTest(unittest.TestCase):
             self.server,
             "test -e /var/cache/userdir-ldap/hosts.deleteme || echo absent")
         self.assertEqual(unit_res["Stdout"].strip(), "absent")
+
+    def test_rsync_userdata_local_overrides(self):
+        model.scp_to_unit("server/0", str(TESTDATA / "rsync_cfg.json"), "/tmp")
+        model.run_on_unit(
+            self.server,
+            "mkdir -p /tmp/test-keys; echo foo > /tmp/test-keys/marker; "
+            "sudo /usr/local/sbin/rsync_userdata.py < /tmp/rsync_cfg.json")
+        unit_res = model.run_on_unit(
+            self.server,
+            "cat /var/cache/userdir-ldap/hosts/bootstack-template.internal/marker")
+        self.assertEqual(unit_res["Stdout"].strip(), "foo")

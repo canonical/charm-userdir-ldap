@@ -67,6 +67,11 @@ def switch_dirs(src, dst):
     shutil.rmtree(str(tmppath))
 
 
+def copyfiles(src, dst):
+    for fn in src.glob("*"):
+        shutil.copy(str(fn), str(dst / fn.name))
+
+
 def main():
     cfg = json.load(sys.stdin)
     validate(cfg)
@@ -75,12 +80,12 @@ def main():
     staging_dir.chmod(0o755)
     host_dirs = cfg["host_dirs"]
     print("Rsync host_dirs: {}".format(host_dirs))
-    for host_dir in host_dirs:
-        rsync_ud(cfg["key_file"], cfg["dist_user"], host_dir, str(staging_dir))
     local_overrides = cfg.get("local_overrides", [])
     print("Copying in local_overrides: {}".format(local_overrides))
-    for override_dir in local_overrides:
-        shutil.copytree(override_dir, staging_dir)
+    for host_dir in host_dirs:
+        rsync_ud(cfg["key_file"], cfg["dist_user"], host_dir, str(staging_dir))
+        for override_dir in local_overrides:
+            copyfiles(Path(override_dir), staging_dir / host_dir)
     check_call(["chown", "-R", cfg["dist_user"], str(staging_dir)])
     switch_dirs(staging_dir, local_dir)
 
