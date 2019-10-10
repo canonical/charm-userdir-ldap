@@ -134,6 +134,8 @@ def handle_local_ssh_keys(root_priv_key, root_ssh_dir="/root/.ssh"):
     if not os.path.exists(root_ssh_dir):
         os.makedirs(root_ssh_dir, mode=0o700)
     if root_priv_key:
+        if root_priv_key[-1:] != "\n":  # ssh-keygen requires a newline at the end
+            root_priv_key += "\n"       # add one
         write_file(path="{}/id_rsa".format(root_ssh_dir), content=root_priv_key, perms=0o600)
         root_id_rsa_pub = subprocess.check_output(["/usr/bin/ssh-keygen", "-f", "{}/id_rsa".format(root_ssh_dir), "-y"])
         write_file(path="{}/id_rsa.pub".format(root_ssh_dir), content=root_id_rsa_pub, perms=0o600)

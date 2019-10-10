@@ -18,4 +18,14 @@ syncing of the "template-hostname" userdata. In this case, "client"
 units will only be able to get userdata for "template-hostname" as
 well. See the bundle in "./tests/bundles/xenial.yaml" for an example.
 
+Design note: with cascaded userdir-ldap units, user data is coming
+into the "server" from userdb-host unit via two paths:
+
+- rsynced via ud-replicate, where ud-replicate will process userdata
+  for local consumption
+
+- straight rsync, without postprocessing, where client units in turn
+  will be able to ud-replicate from
+
+
 
