@@ -12,6 +12,8 @@ from charmhelpers.core import unitdata
 from charmhelpers.fetch import apt_install, apt_update, add_source
 
 
+HOSTS_FILE = "/etc/hosts"
+
 try:
     from python_hosts.hosts import Hosts, HostsEntry
 except ImportError:
@@ -201,17 +203,18 @@ def update_hosts(userdb_host, userdb_ip):
     works
     """
 
-    hosts_file = "/etc/hosts"
-
     log("userdb_host: {} userdb_ip: {}".format(userdb_host, userdb_ip))
 
-    hosts = Hosts(path=hosts_file)
+    hosts = Hosts(path=HOSTS_FILE)
 
     hostname, fqdn = my_hostnames()
     hostname, hostname_lxc = lxc_hostname(hostname)
     default_gw_ip = get_default_gw_ip()
 
-    add_list = [HostsEntry(entry_type="ipv4", names=[fqdn, hostname, hostname_lxc], address=default_gw_ip)]
+    names = [fqdn, hostname]
+    if hostname_lxc:
+        names.append(hostname_lxc)
+    add_list = [HostsEntry(entry_type="ipv4", names=names, address=default_gw_ip)]
     if userdb_ip:
         # Maybe not yet set on relation
         add_list.append(HostsEntry(entry_type="ipv4", names=[userdb_host], address=userdb_ip))
@@ -221,9 +224,9 @@ def update_hosts(userdb_host, userdb_ip):
     # Write it out if anything changed
     if any([result["ipv4_count"], result["ipv6_count"], result["replaced_count"]]):
         log("Rewriting hosts file")
-        hosts.write(hosts_file + ".new")
-        os.rename(hosts_file, hosts_file + ".orig")
-        os.rename(hosts_file + ".new", hosts_file)
+        hosts.write(HOSTS_FILE + ".new")
+        os.rename(HOSTS_FILE, HOSTS_FILE + ".orig")
+        os.rename(HOSTS_FILE + ".new", HOSTS_FILE)
 
 
 def update_ssh_known_hosts(hosts, ssh_dir="/root/.ssh"):

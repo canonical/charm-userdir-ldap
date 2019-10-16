@@ -3,6 +3,7 @@ import pathlib
 import shutil
 import sys
 import tempfile
+import textwrap
 import unittest
 from unittest.mock import patch
 
@@ -30,6 +31,15 @@ class TestUserdirLdap(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         cls.tmp, cls.priv_key, _ = gen_test_ssh_keys()
+        cls.hosts_file = cls.tmp / "hosts"
+        with cls.hosts_file.open('w') as f:
+            f.write(textwrap.dedent(
+                """
+                127.0.0.1       localhost
+                127.0.1.1       existing
+                127.0.1.2       userdb.internal
+                """
+            ))
 
     @classmethod
     def tearDownClass(cls):
@@ -80,3 +90,14 @@ class TestUserdirLdap(unittest.TestCase):
         # 45093
         cron_times = utils.cronsplay("foobar", interval=10)
         self.assertEqual(cron_times, "3,13,23,33,43,53")
+
+    @patch("utils.config")
+    @patch("os.uname")
+    def test_update_hosts(self, mock_uname, mock_config):
+        mock_config.return_value = "foodom"
+        mock_uname.return_value = ["dummy", "existing"]
+        with patch("utils.HOSTS_FILE", new=str(self.hosts_file)):
+            utils.update_hosts("userdb.internal", "10.0.0.1")
+        with self.hosts_file.open() as f:
+            hosts = f.read()
+            self.assertTrue(hosts.find("10.0.0.1") != -1)
