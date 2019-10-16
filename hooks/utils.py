@@ -224,9 +224,10 @@ def update_hosts(userdb_host, userdb_ip):
     # Write it out if anything changed
     if any([result["ipv4_count"], result["ipv6_count"], result["replaced_count"]]):
         log("Rewriting hosts file")
-        hosts.write(HOSTS_FILE + ".new")
-        os.rename(HOSTS_FILE, HOSTS_FILE + ".orig")
-        os.rename(HOSTS_FILE + ".new", HOSTS_FILE)
+        tempfile, backupfile = '{}.new'.format(HOSTS_FILE), '{}.orig'.format(HOSTS_FILE)
+        hosts.write(tempfile)
+        os.rename(HOSTS_FILE, backupfile)
+        os.rename(tempfile, HOSTS_FILE)
 
 
 def update_ssh_known_hosts(hosts, ssh_dir="/root/.ssh"):
