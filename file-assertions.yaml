@@ -39,7 +39,7 @@ ud-ldap-server:
     - path:  /root/.ssh/id_rsa.pub
       owner: root
       group: root
-      mode: '600'
+      mode: '644'
     - path:  /root/.ssh/known_hosts
       owner: root
       group: root
