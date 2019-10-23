@@ -145,6 +145,7 @@ def handle_local_ssh_keys(root_priv_key, root_ssh_dir="/root/.ssh"):
     root_id_rsa_pub = subprocess.check_output(["/usr/bin/ssh-keygen", "-f", "{}/id_rsa".format(root_ssh_dir), "-y"])
     write_file(path="{}/id_rsa.pub".format(root_ssh_dir), content=root_id_rsa_pub, perms=0o644)
 
+
 def cronsplay(string, interval=5):
     """Compute varying intervals for cron"""
     offsets = []
