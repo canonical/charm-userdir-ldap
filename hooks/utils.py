@@ -139,10 +139,11 @@ def handle_local_ssh_keys(root_priv_key, root_ssh_dir="/root/.ssh"):
         if root_priv_key[-1:] != "\n":  # ssh-keygen requires a newline at the end
             root_priv_key += "\n"       # add one
         write_file(path="{}/id_rsa".format(root_ssh_dir), content=root_priv_key, perms=0o600)
-        root_id_rsa_pub = subprocess.check_output(["/usr/bin/ssh-keygen", "-f", "{}/id_rsa".format(root_ssh_dir), "-y"])
-        write_file(path="{}/id_rsa.pub".format(root_ssh_dir), content=root_id_rsa_pub, perms=0o600)
     if not os.path.exists("{}/id_rsa".format(root_ssh_dir)):
         create_ssh_keypair("{}/id_rsa".format(root_ssh_dir))
+    # ensure matching pubkey, extract it from privkey which we know exists by now
+    root_id_rsa_pub = subprocess.check_output(["/usr/bin/ssh-keygen", "-f", "{}/id_rsa".format(root_ssh_dir), "-y"])
+    write_file(path="{}/id_rsa.pub".format(root_ssh_dir), content=root_id_rsa_pub, perms=0o644)
 
 
 def cronsplay(string, interval=5):
