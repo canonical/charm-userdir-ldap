@@ -196,16 +196,19 @@ def udconsume_data_rel():
     For departing relations, we unset the persisted producer address,
     and re-instate the original userdb.internal user data source
     """
+    db = unitdata.kv()
     addresses = set(ingress_address(rid=u.rid, unit=u.unit) for u in iter_units_for_relation_name("udconsume"))
     if not addresses:
         log("No udconsume rels anymore")
-        unitdata.kv().unset("udconsume_upstream")
+        db.unset("udconsume_upstream")
+        db.flush()
         utils.update_hosts(config("userdb-host"), config("userdb-ip"))
         utils.update_ssh_known_hosts(["userdb.internal", config("userdb-ip")])
         return
     userdb_ip = sorted(list(addresses))[0]  # Pick a deterministic address
     log("udconsume addresses: {}, picking {} for userdb-ip".format(addresses, userdb_ip), level=DEBUG)
-    unitdata.kv().set("udconsume_upstream", userdb_ip)
+    db.set("udconsume_upstream", userdb_ip)
+    db.flush()
     utils.update_hosts(config("userdb-host"), userdb_ip)
     with open('/root/.ssh/id_rsa.pub') as fp:
         # We should have root sshkeys set up at install time
