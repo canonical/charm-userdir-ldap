@@ -243,3 +243,13 @@ def update_ssh_known_hosts(hosts, ssh_dir="/root/.ssh"):
             subprocess.check_call(["/usr/bin/ssh-keygen", "-R", h, "-f", known_hosts])
     with open(known_hosts, "a") as fp:
         subprocess.check_call(["/usr/bin/ssh-keyscan", "-t", "rsa"] + hosts, stdout=fp)
+
+
+def install_sudoer_group(group):
+    sudoer_fn = "/etc/sudoers.d/50-canonical-bootstack"
+    with open(sudoer_fn, "w") as f:
+        f.write(
+            "# This file is managed by juju\n"
+            "%{} ALL=(ALL) NOPASSWD: ALL".format(group)
+        )
+        os.chmod(sudoer_fn, 0o440)
