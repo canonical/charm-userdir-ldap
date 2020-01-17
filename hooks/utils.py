@@ -246,10 +246,9 @@ def update_ssh_known_hosts(hosts, ssh_dir="/root/.ssh"):
 
 
 def install_sudoer_group(group):
-    sudoer_fn = "/etc/sudoers.d/50-canonical-bootstack"
-    with open(sudoer_fn, "w") as f:
-        f.write(
-            "# This file is managed by juju\n"
-            "%{} ALL=(ALL) NOPASSWD: ALL".format(group)
-        )
-        os.chmod(sudoer_fn, 0o440)
+    sudoer_fn = "/etc/sudoers.d/90-juju-userdir-ldap"
+    sudo_str = ("# This file is managed by juju\n"
+                "%{} ALL=(ALL) NOPASSWD: ALL\n").format(group)
+    env = {'EDITOR': '/usr/bin/tee'}
+    subprocess.run(["/usr/sbin/visudo", "-f", sudoer_fn], input=bytes(sudo_str, encoding='utf8'), env=env, check=True)
+    os.chmod(sudoer_fn, 0o440)

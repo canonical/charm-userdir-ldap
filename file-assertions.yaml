@@ -91,7 +91,7 @@ ud-ldap-client:
       owner: root
       group: root
       mode: '440'
-    - path: /etc/sudoers.d/50-canonical-bootstack
+    - path: /etc/sudoers.d/90-juju-userdir-ldap
       owner: root
       group: root
       mode: '440'
