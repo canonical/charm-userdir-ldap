@@ -3,8 +3,9 @@ tests:
   - tests.tests_userdir_ldap.UserdirLdapTest
   - zaza.openstack.charm_tests.security.tests.FileOwnershipTest
 gate_bundles:
-  - xenial
+  - focal
   - bionic
+  - xenial
 target_deploy_status:
   ud-ldap-client:
     workload-status: unknown
