@@ -102,7 +102,7 @@ class UserdirLdapTest(unittest.TestCase):
         pubkey = self.cat_unit(self.server, "/root/.ssh/id_rsa.pub")
         self.assertRegexpMatches(pubkey, "^ssh-rsa ")
         privkey = self.cat_unit(self.server, "/root/.ssh/id_rsa")
-        self.assertRegexpMatches(privkey, "^-----BEGIN OPENSSH PRIVATE KEY-----")
+        self.assertRegexpMatches(privkey, "^-----BEGIN RSA PRIVATE KEY-----")
         ubukey = self.cat_unit(self.server, "/etc/ssh/user-authorized-keys/ubuntu")
         self.assertRegex(ubukey, "^ssh-rsa ")
 
