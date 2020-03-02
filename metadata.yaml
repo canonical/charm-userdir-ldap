@@ -1,7 +1,7 @@
 name: userdir-ldap
 format: 2
 summary: Userdir-LDAP setup
-maintainer: Darren Spiteri <darren.spiteri@canonical.com>
+maintainer: BootStack Charmers <bootstack-charmers@lists.canonical.com> 
 subordinate: true
 description: |
   Installs userdir-ldap and configures it.
