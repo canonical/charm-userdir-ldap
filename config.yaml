@@ -45,3 +45,7 @@ options:
     type: string
     default: "umac-128-etm@openssh.com,hmac-sha2-512-etm@openssh.com,hmac-sha2-256-etm@openssh.com,hmac-sha2-256"
     description: "List of MAC (message authentication code) algorithms allowed. Default MACs available since OpenSSH 6.2 so already supported on both Trusty and Xenial."
+  sudoer-group:
+    type: string
+    default: bootstack-squad
+    description: Group to install as sudoers

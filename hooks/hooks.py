@@ -98,6 +98,9 @@ def setup_udldap():
     # juju ssh to the unit
     open_port(22)
 
+    # Add sudoers
+    utils.install_sudoer_group(config('sudoer-group'))
+
 
 # Change the sshd keyfile to use our locations
 # Note: this cannot be done before juju is setup (e.g. during MaaS

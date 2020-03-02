@@ -243,3 +243,12 @@ def update_ssh_known_hosts(hosts, ssh_dir="/root/.ssh"):
             subprocess.check_call(["/usr/bin/ssh-keygen", "-R", h, "-f", known_hosts])
     with open(known_hosts, "a") as fp:
         subprocess.check_call(["/usr/bin/ssh-keyscan", "-t", "rsa"] + hosts, stdout=fp)
+
+
+def install_sudoer_group(group):
+    sudoer_fn = "/etc/sudoers.d/90-juju-userdir-ldap"
+    sudo_str = ("# This file is managed by juju\n"
+                "%{} ALL=(ALL) NOPASSWD: ALL\n").format(group)
+    env = {'EDITOR': '/usr/bin/tee'}
+    subprocess.run(["/usr/sbin/visudo", "-f", sudoer_fn], input=bytes(sudo_str, encoding='utf8'), env=env, check=True)
+    os.chmod(sudoer_fn, 0o440)

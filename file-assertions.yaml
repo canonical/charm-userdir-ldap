@@ -91,6 +91,10 @@ ud-ldap-client:
       owner: root
       group: root
       mode: '440'
+    - path: /etc/sudoers.d/90-juju-userdir-ldap
+      owner: root
+      group: root
+      mode: '440'
     - path:  /usr/local/sbin/snafflekeys
       owner: root
       group: root
