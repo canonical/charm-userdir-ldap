@@ -22,7 +22,7 @@ def _add_path(path):
 
 _add_path(_functest)
 
-from test_utils import gen_test_ssh_keys  # noqa E402
+from tests.shared.test_utils import gen_test_ssh_keys  # noqa E402
 
 TESTDATA = Path(__file__).parent / "testdata"
 

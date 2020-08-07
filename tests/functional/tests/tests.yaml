@@ -1,6 +1,6 @@
 charm_name: userdir-ldap
 tests:
-  - tests.tests_userdir_ldap.UserdirLdapTest
+  - tests.functional.tests.tests_userdir_ldap.UserdirLdapTest
   - zaza.openstack.charm_tests.security.tests.FileOwnershipTest
 gate_bundles:
   - focal
