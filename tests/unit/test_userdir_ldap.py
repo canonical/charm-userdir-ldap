@@ -26,7 +26,7 @@ _add_path(_functest)
 
 from charmhelpers.core.host import write_file  # noqa E402
 
-from test_utils import gen_test_ssh_keys, effective_group, effective_user  # noqa E402
+from tests.shared.test_utils import gen_test_ssh_keys, effective_group, effective_user  # noqa E402
 
 import utils  # noqa E402
 
