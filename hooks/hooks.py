@@ -13,7 +13,7 @@ if os.path.exists(local_copy) and os.path.isdir(local_copy):
 
 from charmhelpers.fetch import configure_sources, apt_install  # noqa E402
 
-from charmhelpers.core.hookenv import (   # noqa E402
+from charmhelpers.core.hookenv import (  # noqa: E402
     Hooks,
     config,
     log,
@@ -189,7 +189,7 @@ def copy_user_keys():
     "udconsume-relation-changed"
 )
 def udconsume_data_rel():
-    """Set up the consumer/client side of the relation
+    """Set up the consumer/client side of the relation.
 
     For new relations: we have an incoming relation from a userdata
     producer (server).  Need to store the producer address to sync
@@ -237,7 +237,7 @@ def udconsume_data_rel():
     "udprovide-relation-joined", "udprovide-relation-changed"
 )
 def udprovide_rel():
-    """Set up the producer/server side of the relation
+    """Set up the producer/server side of the relation.
 
     Iterate through the related consumer/client units, install their
     ssh pubkeys and set up the rsync job for those. Also, kick off an
