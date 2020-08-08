@@ -6,7 +6,15 @@ import shutil
 import socket
 import subprocess
 
-from charmhelpers.core.hookenv import config, relation_ids, related_units, local_unit, log, DEBUG, WARNING
+from charmhelpers.core.hookenv import (
+    config,
+    relation_ids,
+    related_units,
+    local_unit,
+    log,
+    DEBUG,
+    WARNING,
+)
 from charmhelpers.core.host import write_file, user_exists, adduser
 from charmhelpers.core import unitdata, templating
 from charmhelpers.fetch import apt_install, apt_update, add_source
@@ -38,7 +46,7 @@ def ensure_user(user, home):
 
 def write_authkeys(username, ud_units):
     auth_file = "/etc/ssh/user-authorized-keys/{}".format(username)
-    tmpl = 'command="rsync --server --sender -pr . /var/cache/userdir-ldap/hosts/{host}" {pub_key}\n'
+    tmpl = 'command="rsync --server --sender -pr . /var/cache/userdir-ldap/hosts/{host}" {pub_key}\n'  # noqa: E501
     content = "\n".join(tmpl.format(pub_key=k, host=h) for k, h in ud_units)
     write_file(path=auth_file, content=content, owner=username)
 
@@ -120,12 +128,27 @@ def copy_files(charm_dir):
     os.chmod("/usr/local/sbin/snafflekeys", 0o755)
     shutil.copy("%s/files/80-adm-sudoers" % charm_dir, "/etc/sudoers.d")
     os.chmod("/etc/sudoers.d/80-adm-sudoers", 0o440)
-    shutil.copyfile("%s/files/rsync_userdata.py" % charm_dir, "/usr/local/sbin/rsync_userdata.py")
+    shutil.copyfile(
+        "%s/files/rsync_userdata.py" % charm_dir, "/usr/local/sbin/rsync_userdata.py"
+    )
     os.chmod("/usr/local/sbin/rsync_userdata.py", 0o755)
 
 
 def create_ssh_keypair(id_file):
-    subprocess.check_call(["/usr/bin/ssh-keygen", "-q", "-t", "rsa", "-b", "2048", "-N", "", "-f", id_file])
+    subprocess.check_call(
+        [
+            "/usr/bin/ssh-keygen",
+            "-q",
+            "-t",
+            "rsa",
+            "-b",
+            "2048",
+            "-N",
+            "",
+            "-f",
+            id_file,
+        ]
+    )
 
 
 def handle_local_ssh_keys(root_priv_key, root_ssh_dir="/root/.ssh"):
@@ -139,13 +162,19 @@ def handle_local_ssh_keys(root_priv_key, root_ssh_dir="/root/.ssh"):
         os.makedirs(root_ssh_dir, mode=0o700)
     if root_priv_key:
         if root_priv_key[-1:] != "\n":  # ssh-keygen requires a newline at the end
-            root_priv_key += "\n"       # add one
-        write_file(path="{}/id_rsa".format(root_ssh_dir), content=root_priv_key, perms=0o600)
+            root_priv_key += "\n"  # add one
+        write_file(
+            path="{}/id_rsa".format(root_ssh_dir), content=root_priv_key, perms=0o600
+        )
     if not os.path.exists("{}/id_rsa".format(root_ssh_dir)):
         create_ssh_keypair("{}/id_rsa".format(root_ssh_dir))
     # ensure matching pubkey, extract it from privkey which we know exists by now
-    root_id_rsa_pub = subprocess.check_output(["/usr/bin/ssh-keygen", "-f", "{}/id_rsa".format(root_ssh_dir), "-y"])
-    write_file(path="{}/id_rsa.pub".format(root_ssh_dir), content=root_id_rsa_pub, perms=0o644)
+    root_id_rsa_pub = subprocess.check_output(
+        ["/usr/bin/ssh-keygen", "-f", "{}/id_rsa".format(root_ssh_dir), "-y"]
+    )
+    write_file(
+        path="{}/id_rsa.pub".format(root_ssh_dir), content=root_id_rsa_pub, perms=0o644
+    )
 
 
 def cronsplay(string, interval=5):
@@ -164,7 +193,9 @@ def setup_udreplicate_cron():
         f.write(
             "# This file is managed by juju\n"
             "# userdir-ldap updates\n"
-            "{} * * * * root /usr/bin/ud-replicate\n".format(cronsplay(local_unit(), 15))
+            "{} * * * * root /usr/bin/ud-replicate\n".format(
+                cronsplay(local_unit(), 15)
+            )
         )
 
 
@@ -174,7 +205,7 @@ def setup_rsync_userdata_cron():
         f.write(
             "# This file is managed by juju\n"
             "{} * * * * root [ -f /var/lib/misc/rsync_userdata.cfg ] && "
-            "/usr/local/sbin/rsync_userdata.py < /var/lib/misc/rsync_userdata.cfg \n".format(
+            "/usr/local/sbin/rsync_userdata.py < /var/lib/misc/rsync_userdata.cfg \n".format(  # noqa: E501
                 cronsplay(local_unit(), 15)
             )
         )
@@ -220,14 +251,16 @@ def update_hosts(userdb_host, userdb_ip):
     add_list = [HostsEntry(entry_type="ipv4", names=names, address=default_gw_ip)]
     if userdb_ip:
         # Maybe not yet set on relation
-        add_list.append(HostsEntry(entry_type="ipv4", names=[userdb_host], address=userdb_ip))
+        add_list.append(
+            HostsEntry(entry_type="ipv4", names=[userdb_host], address=userdb_ip)
+        )
 
     result = hosts.add(add_list, force=True)
 
     # Write it out if anything changed
     if any([result["ipv4_count"], result["ipv6_count"], result["replaced_count"]]):
         log("Rewriting hosts file")
-        tempfile, backupfile = '{}.new'.format(HOSTS_FILE), '{}.orig'.format(HOSTS_FILE)
+        tempfile, backupfile = "{}.new".format(HOSTS_FILE), "{}.orig".format(HOSTS_FILE)
         hosts.write(tempfile)
         os.rename(HOSTS_FILE, backupfile)
         os.rename(tempfile, HOSTS_FILE)

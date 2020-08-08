@@ -40,16 +40,18 @@ class UserdirLdapTest(unittest.TestCase):
         cls.tmp, priv_file, pub_file = gen_test_ssh_keys()
         model.scp_to_unit(cls.upstream, str(TESTDATA / "server0.lxd.tar.gz"), "/tmp")
         model.scp_to_unit(cls.upstream, str(pub_file), "/tmp/root.pubkey")
+        script_body = (
+            "sudo mkdir -p /var/cache/userdir-ldap/hosts; "
+            "sudo tar xf /tmp/server0.lxd.tar.gz -C /var/cache/userdir-ldap/hosts ;"
+            "cd /var/cache/userdir-ldap/hosts ; "
+            "sudo cp -r server0.lxd bootstack-template.internal; "
+            "sudo useradd sshdist ; "
+            "sudo install -o sshdist -g sshdist -m 0700 -d /home/sshdist/.ssh ;"
+            "sudo chown sshdist:sshdist -R /var/cache/userdir-ldap/hosts ;"
+            "sudo install -o sshdist -g sshdist /tmp/root.pubkey /home/sshdist/.ssh/authorized_keys"  # noqa: E501
+        )
         model.run_on_unit(
-            cls.upstream,
-            (
-                "sudo mkdir -p /var/cache/userdir-ldap/hosts; "
-                "sudo tar xf /tmp/server0.lxd.tar.gz -C /var/cache/userdir-ldap/hosts ;"
-                "cd /var/cache/userdir-ldap/hosts ; sudo cp -r server0.lxd bootstack-template.internal; "
-                "sudo useradd sshdist ; sudo install -o sshdist -g sshdist -m 0700 -d /home/sshdist/.ssh ;"
-                "sudo chown sshdist:sshdist -R /var/cache/userdir-ldap/hosts ;"
-                "sudo install -o sshdist -g sshdist /tmp/root.pubkey /home/sshdist/.ssh/authorized_keys"
-            ),
+            cls.upstream, script_body,
         )
         model.block_until_all_units_idle()
         model.set_application_config("ud-ldap-server", {"userdb-ip": cls.upstream_ip})
@@ -58,11 +60,18 @@ class UserdirLdapTest(unittest.TestCase):
             model.set_application_config("ud-ldap-server", {"root-id-rsa": p.read()})
         model.block_until_all_units_idle()
         model.run_on_unit(
-            cls.server, "sudo ud-replicate; sudo /usr/local/sbin/rsync_userdata.py < /var/lib/misc/rsync_userdata.cfg"
+            cls.server,
+            (
+                "sudo ud-replicate; "
+                "sudo /usr/local/sbin/rsync_userdata.py "
+                "< /var/lib/misc/rsync_userdata.cfg"
+            ),
         )
         model.block_until_all_units_idle()
         # block_until_file_has_contents doesn't like subord applications
-        model.block_until_file_has_contents("server", "/var/lib/misc/server0.lxd/passwd.tdb", "foo")
+        model.block_until_file_has_contents(
+            "server", "/var/lib/misc/server0.lxd/passwd.tdb", "foo"
+        )
         model.run_on_unit(cls.client, "sudo ud-replicate")
         model.block_until_all_units_idle()
 
@@ -88,18 +97,28 @@ class UserdirLdapTest(unittest.TestCase):
         host_dict = self.unit_host_dict(self.server)
         self.assertTrue(self.server_ip in host_dict, "Expect server ip in /etc/hosts")
         self.assertEqual(
-            sorted(host_dict[self.server_ip].names), ["server0", "server0.lxd"], "Expect server names in /etc/hosts"
+            sorted(host_dict[self.server_ip].names),
+            ["server0", "server0.lxd"],
+            "Expect server names in /etc/hosts",
         )
 
     def test_etc_hosts_userdb(self):
         host_dict = self.unit_host_dict(self.server)
-        self.assertTrue(self.upstream_ip in host_dict, "Expect upstream ip in /etc/hosts")
-        self.assertEqual(host_dict[self.upstream_ip].names, ["userdb.internal"], "Expect upstream name in /etc/hosts")
+        self.assertTrue(
+            self.upstream_ip in host_dict, "Expect upstream ip in /etc/hosts"
+        )
+        self.assertEqual(
+            host_dict[self.upstream_ip].names,
+            ["userdb.internal"],
+            "Expect upstream name in /etc/hosts",
+        )
 
     def test_client_etc_hosts(self):
         host_dict = self.unit_host_dict(self.client)
         self.assertEqual(
-            host_dict[self.server_ip].names, ["userdb.internal"], "Expect server0 ip as userdb in /etc/hosts"
+            host_dict[self.server_ip].names,
+            ["userdb.internal"],
+            "Expect server0 ip as userdb in /etc/hosts",
         )
 
     def test_ssh_keys(self):
@@ -119,21 +138,28 @@ class UserdirLdapTest(unittest.TestCase):
 
     def test_ud_replication(self):
         for user_name in ("foo", "a.bc"):
-            getent_res = model.run_on_unit(self.server, "getent passwd {}".format(user_name))
+            getent_res = model.run_on_unit(
+                self.server, "getent passwd {}".format(user_name)
+            )
             pwd_entry = getent_res["Stdout"].split(":")
             self.assertEqual(pwd_entry[0], user_name)
 
     def ssh_login(self, unit):
         key_dir = "/etc/ssh/user-authorized-keys"
-        model.run_on_unit(unit, "ssh-keyscan -t rsa localhost >> /root/.ssh/known_hosts")
+        model.run_on_unit(
+            unit, "ssh-keyscan -t rsa localhost >> /root/.ssh/known_hosts"
+        )
         for user_name in ("foo", "a.bc"):
             model.run_on_unit(
                 unit,
-                "sudo install -o {user_name} -g testgroup /root/.ssh/id_rsa.pub {key_dir}/{user_name}".format(
-                    key_dir=key_dir, user_name=user_name
-                ),
+                (
+                    "sudo install -o {user_name} -g testgroup "
+                    "/root/.ssh/id_rsa.pub {key_dir}/{user_name}"
+                ).format(key_dir=key_dir, user_name=user_name),
             )
-            ssh_res = model.run_on_unit(unit, "sudo ssh -l {} localhost whoami".format(user_name))
+            ssh_res = model.run_on_unit(
+                unit, "sudo ssh -l {} localhost whoami".format(user_name)
+            )
             self.assertEqual(user_name, ssh_res["Stdout"].strip())
 
     def test_ssh_login_server(self):
@@ -144,8 +170,8 @@ class UserdirLdapTest(unittest.TestCase):
 
     def test_rsync_userdata_leftover(self):
         unit_res = model.run_on_unit(
-            self.server,
-            "test -e /var/cache/userdir-ldap/hosts.deleteme || echo absent")
+            self.server, "test -e /var/cache/userdir-ldap/hosts.deleteme || echo absent"
+        )
         self.assertEqual(unit_res["Stdout"].strip(), "absent")
 
     def test_rsync_userdata_local_overrides(self):
@@ -153,8 +179,10 @@ class UserdirLdapTest(unittest.TestCase):
         model.run_on_unit(
             self.server,
             "mkdir -p /tmp/test-keys; echo foo > /tmp/test-keys/marker; "
-            "sudo /usr/local/sbin/rsync_userdata.py < /tmp/rsync_cfg.json")
+            "sudo /usr/local/sbin/rsync_userdata.py < /tmp/rsync_cfg.json",
+        )
         unit_res = model.run_on_unit(
             self.server,
-            "cat /var/cache/userdir-ldap/hosts/bootstack-template.internal/marker")
+            "cat /var/cache/userdir-ldap/hosts/bootstack-template.internal/marker",
+        )
         self.assertEqual(unit_res["Stdout"].strip(), "foo")

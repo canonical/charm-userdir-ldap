@@ -26,7 +26,11 @@ _add_path(_functest)
 
 from charmhelpers.core.host import write_file  # noqa E402
 
-from tests.shared.test_utils import gen_test_ssh_keys, effective_group, effective_user  # noqa E402
+from tests.shared.test_utils import (  # noqa: E402
+    gen_test_ssh_keys,
+    effective_group,
+    effective_user,
+)
 
 import utils  # noqa E402
 
@@ -37,14 +41,16 @@ class TestUserdirLdap(unittest.TestCase):
         os.environ['CHARM_DIR'] = _charmdir
         cls.tmp, cls.priv_key, _ = gen_test_ssh_keys()
         cls.hosts_file = cls.tmp / "hosts"
-        with cls.hosts_file.open('w') as f:
-            f.write(textwrap.dedent(
-                """
+        with cls.hosts_file.open("w") as f:
+            f.write(
+                textwrap.dedent(
+                    """
                 127.0.0.1       localhost
                 127.0.1.1       existing
                 127.0.1.2       userdb.internal
                 """
-            ))
+                )
+            )
 
     @classmethod
     def tearDownClass(cls):
@@ -77,7 +83,10 @@ class TestUserdirLdap(unittest.TestCase):
             kwargs["owner"] = effective_user()
             kwargs["group"] = effective_group()
             write_file(**kwargs)
-        mock_write_file.side_effect = user_write_file  # write file but with our euid / egid instead of root:root
+
+        mock_write_file.side_effect = (
+            user_write_file  # write file but with our euid / egid instead of root:root
+        )
         with tempfile.TemporaryDirectory() as tmp:
             with self.priv_key.open() as fp:
                 inputkey = fp.read()
