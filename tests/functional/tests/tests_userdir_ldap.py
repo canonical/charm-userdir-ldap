@@ -1,28 +1,15 @@
 #!/usr/bin/env python3
-import os
 import shutil
-import sys
 import unittest
 from pathlib import Path
+
+from python_hosts import HostsEntry
+
+from tests.shared.test_utils import gen_test_ssh_keys
 
 import zaza.charm_lifecycle.utils as lifecycle_utils
 from zaza import model
 
-from python_hosts import HostsEntry
-
-
-_path = os.path.dirname(os.path.realpath(__file__))
-_functest = os.path.abspath(os.path.join(_path, "../tests"))
-
-
-def _add_path(path):
-    if path not in sys.path:
-        sys.path.insert(1, path)
-
-
-_add_path(_functest)
-
-from tests.shared.test_utils import gen_test_ssh_keys  # noqa E402
 
 TESTDATA = Path(__file__).parent / "testdata"
 
@@ -83,9 +70,10 @@ class UserdirLdapTest(unittest.TestCase):
     def cat_unit(self, unit, path):
         unit_res = model.run_on_unit(unit, "sudo cat {}".format(path))
         self.assertIn(
-            "Stdout", unit_res,
-            "unit: {}\n"
-            "sudo cat {} failed with: \n{}".format(unit, path, unit_res))
+            "Stdout",
+            unit_res,
+            "unit: {}\n" "sudo cat {} failed with: \n{}".format(unit, path, unit_res),
+        )
         return unit_res["Stdout"]
 
     def unit_host_dict(self, unit):
@@ -126,16 +114,15 @@ class UserdirLdapTest(unittest.TestCase):
         pubkey = self.cat_unit(self.server, "/root/.ssh/id_rsa.pub")
         self.assertRegexpMatches(pubkey, "^ssh-rsa ")
         privkey = self.cat_unit(self.server, "/root/.ssh/id_rsa")
-        self.assertRegexpMatches(privkey, "^-----BEGIN (RSA)|(OPENSSH) PRIVATE KEY-----")
+        self.assertRegexpMatches(
+            privkey, "^-----BEGIN (RSA)|(OPENSSH) PRIVATE KEY-----"
+        )
         ubukey = self.cat_unit(self.server, "/etc/ssh/user-authorized-keys/ubuntu")
         self.assertRegex(ubukey, "^ssh-rsa ")
 
     def test_sudoers(self):
         sudoers = self.cat_unit(self.server, "/etc/sudoers.d/90-juju-userdir-ldap")
-        self.assertTrue(
-            "%bootstack-squad" in sudoers,
-            "Expect server ip in /etc/hosts"
-        )
+        self.assertTrue("%bootstack-squad" in sudoers, "Expect server ip in /etc/hosts")
 
     def test_ud_replication(self):
         for user_name in ("foo", "a.bc"):

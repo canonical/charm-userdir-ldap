@@ -1,23 +1,23 @@
 import binascii
-import os
 import json
+import os
 import re
 import shutil
 import socket
 import subprocess
 
+from charmhelpers.core import templating, unitdata
 from charmhelpers.core.hookenv import (
-    config,
-    relation_ids,
-    related_units,
-    local_unit,
-    log,
     DEBUG,
     WARNING,
+    config,
+    local_unit,
+    log,
+    related_units,
+    relation_ids,
 )
-from charmhelpers.core.host import write_file, user_exists, adduser
-from charmhelpers.core import unitdata, templating
-from charmhelpers.fetch import apt_install, apt_update, add_source
+from charmhelpers.core.host import adduser, user_exists, write_file
+from charmhelpers.fetch import add_source, apt_install, apt_update
 
 
 HOSTS_FILE = "/etc/hosts"
@@ -284,11 +284,11 @@ def install_sudoer_group(no_pass_groups, password_groups, **kwargs):
     """
     Render sudoers file
     """
-    owner = kwargs.get('owner', "root")
-    group = kwargs.get('group', "root")
+    owner = kwargs.get("owner", "root")
+    group = kwargs.get("group", "root")
     context = {
         "pass_sudoer_groups": filter(None, password_groups.split(",")),
-        "no_pass_sudoer_groups": filter(None, no_pass_groups.split(","))
+        "no_pass_sudoer_groups": filter(None, no_pass_groups.split(",")),
     }
     templating.render(
         source=JUJU_SUDOERS_TMPL,

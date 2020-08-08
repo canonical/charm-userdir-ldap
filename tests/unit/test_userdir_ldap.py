@@ -1,14 +1,22 @@
-import os.path
 import os
 import pathlib
 import shutil
-import sys
 import tempfile
 import textwrap
 import unittest
-from pwd import getpwuid
 from grp import getgrgid
+from pwd import getpwuid
 from unittest.mock import patch
+
+from charmhelpers.core.host import write_file
+
+from tests.shared.test_utils import (
+    effective_group,
+    effective_user,
+    gen_test_ssh_keys,
+)
+
+import utils
 
 _path = os.path.dirname(os.path.realpath(__file__))
 _charmdir = os.path.abspath(os.path.join(_path, ".."))
@@ -16,29 +24,10 @@ _hooks = os.path.abspath(os.path.join(_charmdir, "hooks"))
 _functest = os.path.abspath(os.path.join(_charmdir, "tests"))
 
 
-def _add_path(path):
-    if path not in sys.path:
-        sys.path.insert(1, path)
-
-
-_add_path(_hooks)
-_add_path(_functest)
-
-from charmhelpers.core.host import write_file  # noqa E402
-
-from tests.shared.test_utils import (  # noqa: E402
-    gen_test_ssh_keys,
-    effective_group,
-    effective_user,
-)
-
-import utils  # noqa E402
-
-
 class TestUserdirLdap(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
-        os.environ['CHARM_DIR'] = _charmdir
+        os.environ["CHARM_DIR"] = _charmdir
         cls.tmp, cls.priv_key, _ = gen_test_ssh_keys()
         cls.hosts_file = cls.tmp / "hosts"
         with cls.hosts_file.open("w") as f:
@@ -123,9 +112,7 @@ class TestUserdirLdap(unittest.TestCase):
             group = getgrgid(fstat.st_gid).gr_name
             with patch("utils.JUJU_SUDOERS", new=tmp_file.name):
                 utils.install_sudoer_group(
-                    'no_pass', 'pg1,pg2',
-                    owner=owner,
-                    group=group
+                    "no_pass", "pg1,pg2", owner=owner, group=group
                 )
             sudoers = tmp_file.read().decode()
         assert "%pg1 ALL=(ALL) ALL" in sudoers

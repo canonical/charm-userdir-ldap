@@ -5,32 +5,24 @@ import shutil
 import subprocess
 import sys
 
-local_copy = os.path.join(
-    os.path.dirname(os.path.abspath(os.path.dirname(__file__))), "hooks", "charmhelpers"
-)
-if os.path.exists(local_copy) and os.path.isdir(local_copy):
-    sys.path.insert(0, local_copy)
-
-from charmhelpers.fetch import configure_sources, apt_install  # noqa E402
-
-from charmhelpers.core.hookenv import (  # noqa: E402
+from charmhelpers.core import unitdata
+from charmhelpers.core.hookenv import (
+    DEBUG,
     Hooks,
     config,
+    ingress_address,
+    iter_units_for_relation_name,
     log,
     open_port,
-    relation_ids,
     related_units,
-    relation_set,
     relation_get,
-    DEBUG,
-    iter_units_for_relation_name,
-    ingress_address,
+    relation_ids,
+    relation_set,
 )
+from charmhelpers.core.host import mkdir, service_reload
+from charmhelpers.fetch import apt_install, configure_sources
 
-from charmhelpers.core.host import service_reload, mkdir  # noqa E402
-from charmhelpers.core import unitdata  # noqa E402
-
-import utils  # noqa E402
+import utils
 
 hooks = Hooks()
 
