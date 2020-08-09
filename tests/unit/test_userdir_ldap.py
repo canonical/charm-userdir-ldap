@@ -78,6 +78,7 @@ class TestUserdirLdap(unittest.TestCase):
     @patch("utils.write_file")
     def test_handle_local_ssh_keys(self, mock_write_file):
         """Test utils.handle_local_ssh_keys()."""
+
         def user_write_file(**kwargs):
             kwargs["owner"] = effective_user()
             kwargs["group"] = effective_group()
