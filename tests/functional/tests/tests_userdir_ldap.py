@@ -1,4 +1,6 @@
 #!/usr/bin/env python3
+"""Functional tests."""
+
 import shutil
 import unittest
 from pathlib import Path
@@ -15,8 +17,11 @@ TESTDATA = Path(__file__).parent / "testdata"
 
 
 class UserdirLdapTest(unittest.TestCase):
+    """Functional tests."""
+
     @classmethod
     def setUpClass(cls):
+        """Run once before tests start."""
         cls.model_name = model.get_juju_model()
         cls.test_config = lifecycle_utils.get_charm_config()
         cls.server = "ud-ldap-server/0"
@@ -65,9 +70,11 @@ class UserdirLdapTest(unittest.TestCase):
 
     @classmethod
     def tearDownClass(cls):
+        """Run once after tests finish."""
         shutil.rmtree(cls.tmp)
 
     def cat_unit(self, unit, path):
+        """Run "cat <path>" on a remote unit."""
         unit_res = model.run_on_unit(unit, "sudo cat {}".format(path))
         self.assertIn(
             "Stdout",
@@ -77,12 +84,14 @@ class UserdirLdapTest(unittest.TestCase):
         return unit_res["Stdout"]
 
     def unit_host_dict(self, unit):
+        """Convert remote unit's /etc/hosts file into an IP-to-HostEntry mapping."""
         hostsfile = self.cat_unit(unit, "/etc/hosts")
         lines = filter(None, hostsfile.splitlines())
         hosts = [HostsEntry.str_to_hostentry(e) for e in lines]
         return {h.address: h for h in hosts if h}
 
     def test_etc_hosts_server(self):
+        """Confirm the server's /etc/hosts settings for itself."""
         host_dict = self.unit_host_dict(self.server)
         self.assertTrue(self.server_ip in host_dict, "Expect server ip in /etc/hosts")
         self.assertEqual(
@@ -92,6 +101,7 @@ class UserdirLdapTest(unittest.TestCase):
         )
 
     def test_etc_hosts_userdb(self):
+        """Confirm the server's /etc/hosts settings for the upstream unit."""
         host_dict = self.unit_host_dict(self.server)
         self.assertTrue(
             self.upstream_ip in host_dict, "Expect upstream ip in /etc/hosts"
@@ -103,6 +113,7 @@ class UserdirLdapTest(unittest.TestCase):
         )
 
     def test_client_etc_hosts(self):
+        """Confirm the client's /etc/hosts settings for the upstream unit."""
         host_dict = self.unit_host_dict(self.client)
         self.assertEqual(
             host_dict[self.server_ip].names,
@@ -111,6 +122,7 @@ class UserdirLdapTest(unittest.TestCase):
         )
 
     def test_ssh_keys(self):
+        """Confirm creation of SSH keys on the server."""
         pubkey = self.cat_unit(self.server, "/root/.ssh/id_rsa.pub")
         self.assertRegexpMatches(pubkey, "^ssh-rsa ")
         privkey = self.cat_unit(self.server, "/root/.ssh/id_rsa")
@@ -125,6 +137,7 @@ class UserdirLdapTest(unittest.TestCase):
         self.assertTrue("%bootstack-squad" in sudoers, "Expect server ip in /etc/hosts")
 
     def test_ud_replication(self):
+        """Confirm login information of remote users on the server via replication."""
         for user_name in ("foo", "a.bc"):
             getent_res = model.run_on_unit(
                 self.server, "getent passwd {}".format(user_name)
@@ -133,6 +146,7 @@ class UserdirLdapTest(unittest.TestCase):
             self.assertEqual(pwd_entry[0], user_name)
 
     def ssh_login(self, unit):
+        """Confirm remote user login capability."""
         key_dir = "/etc/ssh/user-authorized-keys"
         model.run_on_unit(
             unit, "ssh-keyscan -t rsa localhost >> /root/.ssh/known_hosts"
@@ -151,18 +165,22 @@ class UserdirLdapTest(unittest.TestCase):
             self.assertEqual(user_name, ssh_res["Stdout"].strip())
 
     def test_ssh_login_server(self):
+        """Confirm remote user login capability on the server."""
         self.ssh_login(self.server)
 
     def test_ssh_login_client(self):
+        """Confirm remote user login capability on the client."""
         self.ssh_login(self.client)
 
     def test_rsync_userdata_leftover(self):
+        """Confirm that the hosts.deleteme file has been removed from the server."""
         unit_res = model.run_on_unit(
             self.server, "test -e /var/cache/userdir-ldap/hosts.deleteme || echo absent"
         )
         self.assertEqual(unit_res["Stdout"].strip(), "absent")
 
     def test_rsync_userdata_local_overrides(self):
+        """Test that overridden files can be provied to rsync_userdata."""
         model.scp_to_unit("server/0", str(TESTDATA / "rsync_cfg.json"), "/tmp")
         model.run_on_unit(
             self.server,

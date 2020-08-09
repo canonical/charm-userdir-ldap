@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+"""Charm hooks implementation file."""
 import os
 import pwd
 import shutil
@@ -31,6 +32,12 @@ charm_dir = os.path.dirname(hook_dir)
 
 
 def setup_udldap():
+    """Install and set up userdir-ldap and dependencies.
+
+    This also sets up a number of configuration files for related apps, sets up a
+    replication cron job, and performs an initial sync, among other things.
+
+    """
     log("setup_udldap, config: {}".format(config()), level=DEBUG)
     # The postinst for apt/userdir-ldap needs a working `hostname -f`
     userdb_ip = utils.determine_userdb_ip()
@@ -98,10 +105,13 @@ def setup_udldap():
     utils.install_sudoer_group(config("sudoer-group"), config("sudoer-password-groups"))
 
 
-# Change the sshd keyfile to use our locations
-# Note: this cannot be done before juju is setup (e.g. during MaaS
-#       install) because of bug #1270896.  Afterwards *should* be safe
 def reconfigure_sshd():
+    """Change the sshd keyfile to use our locations.
+
+    Note: this cannot be done before juju is setup (e.g. during MaaS
+    install) because of bug #1270896.  Afterwards *should* be safe.
+
+    """
     sshd_config = "/etc/ssh/sshd_config"
     safe_kex_algos = "".join(config("kex-algorithms").splitlines())
     safe_ciphers = "".join(config("ciphers").splitlines())
@@ -147,8 +157,8 @@ def reconfigure_sshd():
         os.unlink(sshd_config + ".new")
 
 
-# Copy users authorized_keys from ~/.ssh to our new location
 def copy_user_keys():
+    """Copy users authorized_keys from ~/.ssh to our new location."""
     dst_keydir = "/etc/ssh/user-authorized-keys"
     if not os.path.isdir(dst_keydir):
         os.mkdir(dst_keydir)
@@ -270,11 +280,13 @@ def udprovide_rel():
 
 
 def install_cheetah():
+    """Installs the python-cheetah apt package."""
     apt_install("python-cheetah")
 
 
 @hooks.hook("install", "install.real")
 def install():
+    """Install and setup userdir-ldap and its dependencies."""
     install_cheetah()
     setup_udldap()
     copy_user_keys()
@@ -283,6 +295,7 @@ def install():
 
 @hooks.hook("config-changed")
 def config_changed():
+    """Handle configuration changes."""
     setup_udldap()
     reconfigure_sshd()
 

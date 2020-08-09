@@ -1,3 +1,5 @@
+"""Unit tests for charm-userdir-ldap."""
+
 import os
 import pathlib
 import shutil
@@ -25,8 +27,11 @@ _functest = os.path.abspath(os.path.join(_charmdir, "tests"))
 
 
 class TestUserdirLdap(unittest.TestCase):
+    """Unit test test class."""
+
     @classmethod
     def setUpClass(cls):
+        """Run once before tests begin."""
         os.environ["CHARM_DIR"] = _charmdir
         cls.tmp, cls.priv_key, _ = gen_test_ssh_keys()
         cls.hosts_file = cls.tmp / "hosts"
@@ -43,11 +48,13 @@ class TestUserdirLdap(unittest.TestCase):
 
     @classmethod
     def tearDownClass(cls):
+        """Run once after tests finish."""
         shutil.rmtree(cls.tmp)
 
     @patch("utils.os.uname", return_value=["Linux", "foohost"])
     @patch("utils.socket.getfqdn", return_value="foohost.dom")
     def test_my_hostnames_basic(self, mock_fqdn, mock_uname):
+        """Verify that utils.my_hostnames() returns what we expect."""
         hostname, fqdn = utils.my_hostnames()
         self.assertEqual(hostname, "foohost")
         self.assertEqual(fqdn, "foohost.dom")
@@ -55,6 +62,7 @@ class TestUserdirLdap(unittest.TestCase):
     @patch("utils.relation_ids")
     @patch("utils.related_units")
     def test_lxc_hostname_noncontainer(self, _mock_related_units, _mock_relation_ids):
+        """Verify utils.lxc_hostnames() for normal hostnames."""
         hostname, hostname_lxc = utils.lxc_hostname("bar")
         self.assertEqual(hostname, "bar")
         self.assertEqual(hostname_lxc, "")
@@ -62,12 +70,14 @@ class TestUserdirLdap(unittest.TestCase):
     @patch("utils.relation_ids", return_value=[1])
     @patch("utils.related_units", return_value=["foo/1"])
     def test_lxc_hostname_jujucontainer(self, _mock_related_units, _mock_relation_ids):
+        """Verify utils.lxc_hostnames() for container-style hostnames."""
         hostname, hostname_lxc = utils.lxc_hostname("juju-machine-77-lxc-9")
         self.assertEqual(hostname, "foo")
         self.assertEqual(hostname_lxc, "juju-machine-77-lxc-9")
 
     @patch("utils.write_file")
     def test_handle_local_ssh_keys(self, mock_write_file):
+        """Test utils.handle_local_ssh_keys()."""
         def user_write_file(**kwargs):
             kwargs["owner"] = effective_user()
             kwargs["group"] = effective_group()
@@ -89,6 +99,7 @@ class TestUserdirLdap(unittest.TestCase):
             self.assertRegex(pubkey_back, "^ssh-rsa ")
 
     def test_cronsplay(self):
+        """Test utils.cronsplay()."""
         # >>> binascii.crc_hqx(b"foobar", 0)
         # 45093
         cron_times = utils.cronsplay("foobar", interval=10)
@@ -97,6 +108,7 @@ class TestUserdirLdap(unittest.TestCase):
     @patch("utils.config")
     @patch("os.uname")
     def test_update_hosts(self, mock_uname, mock_config):
+        """Test utils.update_hosts()."""
         mock_config.return_value = "foodom"
         mock_uname.return_value = ["dummy", "existing"]
         with patch("utils.HOSTS_FILE", new=str(self.hosts_file)):

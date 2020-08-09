@@ -1,3 +1,5 @@
+"""Shared test code."""
+
 import grp
 import os
 import pwd
@@ -7,7 +9,7 @@ from subprocess import check_output
 
 
 def gen_test_ssh_keys():
-    """Helper to create test ssh keys.
+    """Create test ssh keys.
 
     No attempt at all is made to keep them confident, do _not_ use outside testing
     """
@@ -33,8 +35,10 @@ def gen_test_ssh_keys():
 
 
 def effective_user():
+    """Return the effective user's name."""
     return pwd.getpwuid(os.getuid()).pw_name
 
 
 def effective_group():
+    """Return the effective group's name."""
     return grp.getgrgid(os.getegid()).gr_name

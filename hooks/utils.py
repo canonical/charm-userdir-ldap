@@ -1,3 +1,5 @@
+"""Utilities module."""
+
 import binascii
 import json
 import os
@@ -34,17 +36,26 @@ except ImportError:
 
 
 class UserdirLdapError(Exception):
-    """Error in the userdir-ldap charm"""
+    """Error in the userdir-ldap charm."""
 
     pass
 
 
 def ensure_user(user, home):
+    """Create the user account if it does not already exist."""
     if not user_exists(user):
         adduser(user, home_dir=home, shell="/bin/false")
 
 
 def write_authkeys(username, ud_units):
+    """Set up limited access to allow for limited rsync access to this system.
+
+    Via a custom /etc/ssh/user-authorized-keys/<user> file, limited access is
+    provided to the specified user account for the purpose of pulling files via
+    rsync from a predefined location.  This is done via a command override,
+    thus preventing shell access and instead limiting access to purely rsync.
+
+    """
     auth_file = "/etc/ssh/user-authorized-keys/{}".format(username)
     tmpl = 'command="rsync --server --sender -pr . /var/cache/userdir-ldap/hosts/{host}" {pub_key}\n'  # noqa: E501
     content = "\n".join(tmpl.format(pub_key=k, host=h) for k, h in ud_units)
@@ -52,7 +63,7 @@ def write_authkeys(username, ud_units):
 
 
 def write_rsync_cfg(hosts):
-    """Write config json userdata rsync
+    """Write config json userdata rsync.
 
     The userdata rsync is typically kicked off from cron
     for specific host directories. It persists raw source
@@ -76,11 +87,20 @@ def write_rsync_cfg(hosts):
 
 
 def run_rsync_userdata():
+    """Run the rsync_userdata.py script."""
     with open("/var/lib/misc/rsync_userdata.cfg") as fp:
         subprocess.call(["/usr/local/sbin/rsync_userdata.py"], stdin=fp)
 
 
 def lxc_hostname(hostname):
+    """Replace LXD-style names with names based upon the principal app's name.
+
+    Given a hostname like juju-machine-#-lxc-*, replace the hostname with the principal
+    app's name.  For other hosts, return the hostname as-is.
+
+    Returns (hostname, original_hostname or "").
+
+    """
     # For LXC containers, service names are nicer, e.g.
     #   vbuilder-manage-production-ppc64el.DOMAIN
     hostname_lxc = ""
@@ -95,7 +115,7 @@ def lxc_hostname(hostname):
 
 
 def my_hostnames():
-    """Return hostnames and fqdn for the local machine"""
+    """Return hostnames and fqdn for the local machine."""
     # We can't rely on socket.getfqdn() and still need to use os.uname() here
     # because MAAS creates multiple reverse DNS entries, e.g.:
     #   5.0.189.10.in-addr.arpa domain name pointer 10-189-0-5.bos01.scalingstack.
@@ -114,7 +134,7 @@ def my_hostnames():
 
 
 def get_default_gw_ip():
-    """Get the IP used to reach the default gateway"""
+    """Get the IP used to reach the default gateway."""
     s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     s.connect(("9.9.9.9", 53))
     default_ip = s.getsockname()[0]
@@ -123,6 +143,7 @@ def get_default_gw_ip():
 
 
 def copy_files(charm_dir):
+    """Copy files from the charm into the system."""
     shutil.copyfile("%s/files/nsswitch.conf" % charm_dir, "/etc/nsswitch.conf")
     shutil.copyfile("%s/files/snafflekeys" % charm_dir, "/usr/local/sbin/snafflekeys")
     os.chmod("/usr/local/sbin/snafflekeys", 0o755)
@@ -135,6 +156,7 @@ def copy_files(charm_dir):
 
 
 def create_ssh_keypair(id_file):
+    """Create and SSH keypair."""
     subprocess.check_call(
         [
             "/usr/bin/ssh-keygen",
@@ -152,7 +174,7 @@ def create_ssh_keypair(id_file):
 
 
 def handle_local_ssh_keys(root_priv_key, root_ssh_dir="/root/.ssh"):
-    """Setup root ssh keys
+    """Set up root ssh keys.
 
     Install the supplied private key, if any.  And extract the
     public key, because it'd be weird to not have it alongside.
@@ -178,7 +200,7 @@ def handle_local_ssh_keys(root_priv_key, root_ssh_dir="/root/.ssh"):
 
 
 def cronsplay(string, interval=5):
-    """Compute varying intervals for cron"""
+    """Compute varying intervals for cron."""
     offsets = []
     o = binascii.crc_hqx(string.encode(), 0) % interval
     while o < 60:
@@ -188,7 +210,7 @@ def cronsplay(string, interval=5):
 
 
 def setup_udreplicate_cron():
-    """Setup ud-replicate cron with a little variation"""
+    """Set up ud-replicate cron with a little variation."""
     with open("/etc/cron.d/ud-replicate", "w") as f:
         f.write(
             "# This file is managed by juju\n"
@@ -200,7 +222,7 @@ def setup_udreplicate_cron():
 
 
 def setup_rsync_userdata_cron():
-    """Setup rsync_userdata.py cron with a little variation"""
+    """Set up rsync_userdata.py cron with a little variation."""
     with open("/etc/cron.d/rsync_userdata", "w") as f:
         f.write(
             "# This file is managed by juju\n"
@@ -212,7 +234,7 @@ def setup_rsync_userdata_cron():
 
 
 def determine_userdb_ip():
-    """Return the userdb.internal ip address for ud-replicating
+    """Return the userdb.internal ip address for ud-replicating.
 
     If this is a userdata consumer (client) unit, the upstream unit
     is the related producer unit (ud-ldap server), persisted from
@@ -230,13 +252,13 @@ def determine_userdb_ip():
 
 
 def update_hosts(userdb_host, userdb_ip):
-    """Update /etc/hosts file
+    """Update /etc/hosts file.
 
     Add entries for the userdb host as the userdir-ldap package hardcodes
     this hostname. Add an entry for the local host to ensure hostname -f
     works
-    """
 
+    """
     log("userdb_host: {} userdb_ip: {}".format(userdb_host, userdb_ip))
 
     hosts = Hosts(path=HOSTS_FILE)
@@ -267,7 +289,7 @@ def update_hosts(userdb_host, userdb_ip):
 
 
 def update_ssh_known_hosts(hosts, ssh_dir="/root/.ssh"):
-    """Scan for new host keys"""
+    """Scan for new host keys."""
     if type(hosts) == str:
         hosts = [hosts]
     if not os.path.exists(ssh_dir):
