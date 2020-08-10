@@ -1,1 +1,6 @@
-xenial.yaml.j2
+series: focal
+applications:
+  ud-ldap-server:
+    charm: "{{ CHARM_BUILD_DIR }}/{{ charm_name }}"
+  ud-ldap-client:
+    charm: "{{ CHARM_BUILD_DIR }}/{{ charm_name }}"

@@ -1,4 +1,5 @@
 charm_name: userdir-ldap
+local_overlay_enabled: false
 tests:
   - tests.functional.tests.tests_userdir_ldap.UserdirLdapTest
   - zaza.openstack.charm_tests.security.tests.FileOwnershipTest
