@@ -1,0 +1,10 @@
+#-------------------------------------------------#
+# This file is Juju managed - do not edit by hand #
+#-------------------------------------------------#
+
+# Password sudoers
+{% for group_name in paas_sudoer_groups %}%{{ group_name }} ALL=(ALL) ALL
+{% endfor %}
+# No password sudoers
+{% for group_name in no_pass_sudoer_groups %}%{{ group_name }} ALL=(ALL) NOPASSWD: ALL
+{% endfor %}

@@ -48,4 +48,7 @@ options:
   sudoer-group:
     type: string
     default: bootstack-squad
-    description: Group to install as sudoers
+    description: "Comma separated groups of sudoers who do not require password"
+  password-sudoer-groups:
+    type: string
+    description: "Comma separated groups of sudoers who require a password"
