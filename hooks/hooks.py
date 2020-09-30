@@ -100,7 +100,7 @@ def setup_udldap():
 
     # Add sudoers
     utils.install_sudoer_group(
-        config('sudoer-group'), config('password-sudoer-groups')
+        config('sudoer-group'), config('sudoer-password-groups')
     )
 
 

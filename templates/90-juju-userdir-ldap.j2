@@ -3,7 +3,7 @@
 #-------------------------------------------------#
 
 # Password sudoers
-{% for group_name in paas_sudoer_groups %}%{{ group_name }} ALL=(ALL) ALL
+{% for group_name in pass_sudoer_groups %}%{{ group_name }} ALL=(ALL) ALL
 {% endfor %}
 # No password sudoers
 {% for group_name in no_pass_sudoer_groups %}%{{ group_name }} ALL=(ALL) NOPASSWD: ALL

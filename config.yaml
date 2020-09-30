@@ -49,6 +49,7 @@ options:
     type: string
     default: bootstack-squad
     description: "Comma separated groups of sudoers who do not require password"
-  password-sudoer-groups:
+  sudoer-password-groups:
     type: string
+    default: ""
     description: "Comma separated groups of sudoers who require a password"

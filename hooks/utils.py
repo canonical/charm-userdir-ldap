@@ -254,7 +254,7 @@ def install_sudoer_group(no_pass_groups, password_groups, **kwargs):
     owner = kwargs.get('owner', "root")
     group = kwargs.get('group', "root")
     context = {
-        "paas_sudoer_groups": password_groups.split(","),
+        "pass_sudoer_groups": password_groups.split(","),
         "no_pass_sudoer_groups": no_pass_groups.split(",")
     }
     templating.render(

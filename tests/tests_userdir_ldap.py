@@ -102,9 +102,16 @@ class UserdirLdapTest(unittest.TestCase):
         pubkey = self.cat_unit(self.server, "/root/.ssh/id_rsa.pub")
         self.assertRegexpMatches(pubkey, "^ssh-rsa ")
         privkey = self.cat_unit(self.server, "/root/.ssh/id_rsa")
-        self.assertRegexpMatches(privkey, "^-----BEGIN RSA PRIVATE KEY-----")
+        self.assertRegexpMatches(privkey, "^-----BEGIN (RSA)|(OPENSSH) PRIVATE KEY-----")
         ubukey = self.cat_unit(self.server, "/etc/ssh/user-authorized-keys/ubuntu")
         self.assertRegex(ubukey, "^ssh-rsa ")
+
+    def test_sudoers(self):
+        sudoers = self.cat_unit(self.server, "/etc/sudoers.d/90-juju-userdir-ldap")
+        self.assertTrue(
+            "%bootstack-squad" in sudoers,
+            "Expect server ip in /etc/hosts"
+        )
 
     def test_ud_replication(self):
         for user_name in ("foo", "a.bc"):
