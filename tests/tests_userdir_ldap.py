@@ -72,6 +72,10 @@ class UserdirLdapTest(unittest.TestCase):
 
     def cat_unit(self, unit, path):
         unit_res = model.run_on_unit(unit, "sudo cat {}".format(path))
+        self.assertIn(
+            "Stdout", unit_res,
+            "unit: {}\n"
+            "sudo cat {} failed with: \n{}".format(unit, path, unit_res))
         return unit_res["Stdout"]
 
     def unit_host_dict(self, unit):
