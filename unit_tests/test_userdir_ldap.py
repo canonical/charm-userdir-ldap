@@ -1,15 +1,19 @@
 import os.path
+import os
 import pathlib
 import shutil
 import sys
 import tempfile
 import textwrap
 import unittest
+from pwd import getpwuid
+from grp import getgrgid
 from unittest.mock import patch
 
 _path = os.path.dirname(os.path.realpath(__file__))
-_hooks = os.path.abspath(os.path.join(_path, "../hooks"))
-_functest = os.path.abspath(os.path.join(_path, "../tests"))
+_charmdir = os.path.abspath(os.path.join(_path, ".."))
+_hooks = os.path.abspath(os.path.join(_charmdir, "hooks"))
+_functest = os.path.abspath(os.path.join(_charmdir, "tests"))
 
 
 def _add_path(path):
@@ -30,6 +34,7 @@ import utils  # noqa E402
 class TestUserdirLdap(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
+        os.environ['CHARM_DIR'] = _charmdir
         cls.tmp, cls.priv_key, _ = gen_test_ssh_keys()
         cls.hosts_file = cls.tmp / "hosts"
         with cls.hosts_file.open('w') as f:
@@ -101,3 +106,19 @@ class TestUserdirLdap(unittest.TestCase):
         with self.hosts_file.open() as f:
             hosts = f.read()
             self.assertTrue(hosts.find("10.0.0.1") != -1)
+
+    def test_install_sudoer_group(self):
+        with tempfile.NamedTemporaryFile() as tmp_file:
+            fstat = os.stat(tmp_file.name)
+            owner = getpwuid(fstat.st_uid).pw_name
+            group = getgrgid(fstat.st_gid).gr_name
+            with patch("utils.JUJU_SUDOERS", new=tmp_file.name):
+                utils.install_sudoer_group(
+                    'no_pass', 'pg1,pg2',
+                    owner=owner,
+                    group=group
+                )
+            sudoers = tmp_file.read().decode()
+        assert "%pg1 ALL=(ALL) ALL" in sudoers
+        assert "%pg2 ALL=(ALL) ALL" in sudoers
+        assert "%no_pass ALL=(ALL) NOPASSWD: ALL" in sudoers

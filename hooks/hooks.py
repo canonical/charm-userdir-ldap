@@ -13,7 +13,7 @@ if os.path.exists(local_copy) and os.path.isdir(local_copy):
 
 from charmhelpers.fetch import configure_sources, apt_install  # noqa E402
 
-from charmhelpers.core.hookenv import (
+from charmhelpers.core.hookenv import (   # noqa E402
     Hooks,
     config,
     log,
@@ -25,7 +25,7 @@ from charmhelpers.core.hookenv import (
     DEBUG,
     iter_units_for_relation_name,
     ingress_address,
-)  # noqa E402
+)
 
 from charmhelpers.core.host import service_reload, mkdir  # noqa E402
 from charmhelpers.core import unitdata  # noqa E402
@@ -99,7 +99,9 @@ def setup_udldap():
     open_port(22)
 
     # Add sudoers
-    utils.install_sudoer_group(config('sudoer-group'))
+    utils.install_sudoer_group(
+        config('sudoer-group'), config('sudoer-password-groups')
+    )
 
 
 # Change the sshd keyfile to use our locations

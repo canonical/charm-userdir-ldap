@@ -1,0 +1,5 @@
+revision
+exec.d/*
+.idea
+.tox
+__pycache__

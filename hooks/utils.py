@@ -8,11 +8,13 @@ import subprocess
 
 from charmhelpers.core.hookenv import config, relation_ids, related_units, local_unit, log, DEBUG, WARNING
 from charmhelpers.core.host import write_file, user_exists, adduser
-from charmhelpers.core import unitdata
+from charmhelpers.core import unitdata, templating
 from charmhelpers.fetch import apt_install, apt_update, add_source
 
 
 HOSTS_FILE = "/etc/hosts"
+JUJU_SUDOERS_TMPL = "90-juju-userdir-ldap.j2"
+JUJU_SUDOERS = "/etc/sudoers.d/90-juju-userdir-ldap"
 
 try:
     from python_hosts.hosts import Hosts, HostsEntry
@@ -245,10 +247,21 @@ def update_ssh_known_hosts(hosts, ssh_dir="/root/.ssh"):
         subprocess.check_call(["/usr/bin/ssh-keyscan", "-t", "rsa"] + hosts, stdout=fp)
 
 
-def install_sudoer_group(group):
-    sudoer_fn = "/etc/sudoers.d/90-juju-userdir-ldap"
-    sudo_str = ("# This file is managed by juju\n"
-                "%{} ALL=(ALL) NOPASSWD: ALL\n").format(group)
-    env = {'EDITOR': '/usr/bin/tee'}
-    subprocess.run(["/usr/sbin/visudo", "-f", sudoer_fn], input=bytes(sudo_str, encoding='utf8'), env=env, check=True)
-    os.chmod(sudoer_fn, 0o440)
+def install_sudoer_group(no_pass_groups, password_groups, **kwargs):
+    """
+    Render sudoers file
+    """
+    owner = kwargs.get('owner', "root")
+    group = kwargs.get('group', "root")
+    context = {
+        "pass_sudoer_groups": filter(None, password_groups.split(",")),
+        "no_pass_sudoer_groups": filter(None, no_pass_groups.split(","))
+    }
+    templating.render(
+        source=JUJU_SUDOERS_TMPL,
+        target=JUJU_SUDOERS,
+        context=context,
+        owner=owner,
+        group=group,
+        perms=0o440,
+    )
