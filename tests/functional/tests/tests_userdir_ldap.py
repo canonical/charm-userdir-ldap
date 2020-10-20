@@ -133,6 +133,7 @@ class UserdirLdapTest(unittest.TestCase):
         self.assertRegex(ubukey, "^ssh-rsa ")
 
     def test_sudoers(self):
+        """Test sudoers is configured as expected."""
         sudoers = self.cat_unit(self.server, "/etc/sudoers.d/90-juju-userdir-ldap")
         self.assertTrue("%bootstack-squad" in sudoers, "Expect server ip in /etc/hosts")
 

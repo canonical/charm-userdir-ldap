@@ -20,8 +20,8 @@ from tests.shared.test_utils import (
 
 import utils
 
-_path = os.path.dirname(os.path.realpath(__file__))
-_charmdir = os.path.abspath(os.path.join(_path, ".."))
+_path = os.path.dirname(os.path.abspath(__file__))
+_charmdir = os.path.dirname(os.path.dirname(_path))
 _hooks = os.path.abspath(os.path.join(_charmdir, "hooks"))
 _functest = os.path.abspath(os.path.join(_charmdir, "tests"))
 
@@ -119,6 +119,7 @@ class TestUserdirLdap(unittest.TestCase):
             self.assertTrue(hosts.find("10.0.0.1") != -1)
 
     def test_install_sudoer_group(self):
+        """Test sudoer configuration."""
         with tempfile.NamedTemporaryFile() as tmp_file:
             fstat = os.stat(tmp_file.name)
             owner = getpwuid(fstat.st_uid).pw_name

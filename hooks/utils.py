@@ -303,9 +303,7 @@ def update_ssh_known_hosts(hosts, ssh_dir="/root/.ssh"):
 
 
 def install_sudoer_group(no_pass_groups, password_groups, **kwargs):
-    """
-    Render sudoers file
-    """
+    """Render sudoers file."""
     owner = kwargs.get("owner", "root")
     group = kwargs.get("group", "root")
     context = {
