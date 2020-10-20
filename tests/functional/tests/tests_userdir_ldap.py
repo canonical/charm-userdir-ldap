@@ -51,7 +51,8 @@ class UserdirLdapTest(unittest.TestCase):
             "sudo install -o sshdist -g sshdist /tmp/root.pubkey /home/sshdist/.ssh/authorized_keys"  # noqa: E501
         )
         model.run_on_unit(
-            cls.upstream, script_body,
+            cls.upstream,
+            script_body,
         )
         model.block_until_all_units_idle()
         model.set_application_config("ud-ldap-server", {"userdb-ip": cls.upstream_ip})
