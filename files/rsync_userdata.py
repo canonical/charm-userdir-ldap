@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Rsync user data from userdb.internal
+"""Rsync user data from userdb.internal.
 
 Expects a json-formatted spec on stdin
 
@@ -27,6 +27,7 @@ from subprocess import check_call
 
 
 def rsync_ud(key_file, server_user, remote_dir, local_dir):
+    """Sync the local machine's local_dir with userdb.internal's remote_dir."""
     check_call(
         [
             "rsync",
@@ -36,31 +37,40 @@ def rsync_ud(key_file, server_user, remote_dir, local_dir):
             "-r",
             "-p",
             "--delete",
-            "{}@userdb.internal:/var/cache/userdir-ldap/hosts/{}".format(server_user, remote_dir),
+            "{}@userdb.internal:/var/cache/userdir-ldap/hosts/{}".format(
+                server_user, remote_dir
+            ),
             local_dir,
         ]
     )
 
 
 class RsyncUserdataError(Exception):
-    """Error in rsync_userdata"""
+    """Error in rsync_userdata."""
 
     pass
 
 
 def validate(cfg):
+    """Validate a configuration dictionary."""
     keys = set(cfg.keys())
     expected = {"host_dirs", "local_dir", "key_file", "dist_user"}
     if not expected <= keys:
-        raise RsyncUserdataError("Need {} keys in config, got: {}".format(expected, keys))
+        raise RsyncUserdataError(
+            "Need {} keys in config, got: {}".format(expected, keys)
+        )
     if not isinstance(cfg["host_dirs"], list):
-        raise RsyncUserdataError("Need a list for host_dirs, got: {}".format(cfg["host_dirs"]))
+        raise RsyncUserdataError(
+            "Need a list for host_dirs, got: {}".format(cfg["host_dirs"])
+        )
 
 
 def switch_dirs(src, dst):
+    """Move the src directory to the dst path and vice versa."""
     tmppath = dst.parent / (dst.name + ".deleteme")
     shutil.rmtree(str(tmppath), ignore_errors=True)  # cleanup leftovers if any
-    # The following switches src into place, with only small timeframe where dst is unavailable
+    # The following switches src into place, with only small timeframe where dst is
+    # unavailable
     dst.replace(tmppath)
     src.replace(dst)
     # Cleanup
@@ -68,11 +78,13 @@ def switch_dirs(src, dst):
 
 
 def copyfiles(src, dst):
+    """Copy files within src to dst."""
     for fn in src.glob("*"):
         shutil.copy(str(fn), str(dst / fn.name))
 
 
 def main():
+    """Start here."""
     cfg = json.load(sys.stdin)
     validate(cfg)
     local_dir = Path(cfg["local_dir"])
