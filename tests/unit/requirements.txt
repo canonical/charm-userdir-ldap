@@ -1,0 +1,4 @@
+PyYAML
+python-hosts
+six
+coverage

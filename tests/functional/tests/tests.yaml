@@ -1,0 +1,15 @@
+charm_name: userdir-ldap
+local_overlay_enabled: false
+tests:
+  - tests.tests_userdir_ldap.UserdirLdapTest
+gate_bundles:
+  - focal
+  - bionic
+  - xenial
+target_deploy_status:
+  ud-ldap-client:
+    workload-status: unknown
+    workload-status-message: ''
+  ud-ldap-server:
+    workload-status: unknown
+    workload-status-message: ''
