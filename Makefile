@@ -58,7 +58,7 @@ black:
 
 proof:
 	@echo "Running charm proof"
-	@-charm proof
+	@charm proof
 
 unittests:
 	@echo "Running unit tests"

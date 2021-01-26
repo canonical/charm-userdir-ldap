@@ -2,6 +2,8 @@ name: userdir-ldap
 format: 2
 summary: Userdir-LDAP setup
 maintainer: BootStack Charmers <bootstack-charmers@lists.canonical.com> 
+tags:
+  - ops
 subordinate: true
 description: |
   Installs userdir-ldap and configures it.
