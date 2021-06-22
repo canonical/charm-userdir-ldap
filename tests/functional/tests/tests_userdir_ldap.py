@@ -195,7 +195,7 @@ class UserdirLdapTest(unittest.TestCase):
         self.assertEqual(unit_res["Stdout"].strip(), "foo")
 
     def test_pam_mkhomedir(self):
-        """Test sudoers is configured as expected."""
+        """Test PAM is configured as expected for mkhomedir."""
         session_file = self.cat_unit(self.server, "/etc/pam.d/common-session")
         self.assertTrue(
             "pam_mkhomedir.so" in session_file,
