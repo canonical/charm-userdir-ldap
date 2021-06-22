@@ -103,6 +103,7 @@ def setup_udldap():
 
     # Add sudoers
     utils.install_sudoer_group(config("sudoer-group"), config("sudoer-password-groups"))
+    utils.enable_pam_mkhomedir()
 
 
 def reconfigure_sshd():
