@@ -193,3 +193,11 @@ class UserdirLdapTest(unittest.TestCase):
             "cat /var/cache/userdir-ldap/hosts/bootstack-template.internal/marker",
         )
         self.assertEqual(unit_res["Stdout"].strip(), "foo")
+
+    def test_pam_mkhomedir(self):
+        """Test PAM is configured as expected for mkhomedir."""
+        session_file = self.cat_unit(self.server, "/etc/pam.d/common-session")
+        self.assertTrue(
+            "pam_mkhomedir.so" in session_file,
+            "Expected pam_mkhomedir.so in /etc/pam.d/common-session",
+        )

@@ -318,3 +318,9 @@ def install_sudoer_group(no_pass_groups, password_groups, **kwargs):
         group=group,
         perms=0o440,
     )
+
+
+def enable_pam_mkhomedir():
+    """Create homedirectories upon first login."""
+    cmd = ["/usr/sbin/pam-auth-update", "--enable", "mkhomedir"]
+    subprocess.check_call(cmd)
