@@ -5,7 +5,6 @@ tests:
 gate_bundles:
   - focal
   - bionic
-  - xenial
 target_deploy_status:
   client:
     workload-status: active

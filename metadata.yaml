@@ -1,7 +1,7 @@
 name: userdir-ldap
 format: 2
 summary: Userdir-LDAP setup
-maintainer: BootStack Charmers <bootstack-charmers@lists.canonical.com> 
+maintainer: BootStack Charmers <bootstack-charmers@lists.canonical.com>
 tags:
   - ops
 subordinate: true
@@ -19,4 +19,3 @@ requires:
 series:
   - focal
   - bionic
-  - xenial
