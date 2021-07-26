@@ -7,6 +7,15 @@ gate_bundles:
   - bionic
   - xenial
 target_deploy_status:
+  client:
+    workload-status: active
+    workload-status-message: ''
+  server:
+    workload-status: active
+    workload-status-message: ''
+  upstream:
+    workload-status: active
+    workload-status-message: ''
   ud-ldap-client:
     workload-status: unknown
     workload-status-message: ''
