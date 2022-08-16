@@ -3,6 +3,7 @@ local_overlay_enabled: false
 tests:
   - tests.tests_userdir_ldap.UserdirLdapTest
 gate_bundles:
+  - jammy
   - focal
   - bionic
 target_deploy_status:

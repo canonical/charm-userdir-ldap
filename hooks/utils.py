@@ -19,7 +19,8 @@ from charmhelpers.core.hookenv import (
     relation_ids,
 )
 from charmhelpers.core.host import adduser, user_exists, write_file
-from charmhelpers.fetch import add_source, apt_install, apt_update
+from charmhelpers.fetch import apt_install, apt_update
+from charmhelpers.fetch.python import packages
 
 
 HOSTS_FILE = "/etc/hosts"
@@ -27,12 +28,12 @@ JUJU_SUDOERS_TMPL = "90-juju-userdir-ldap.j2"
 JUJU_SUDOERS = "/etc/sudoers.d/90-juju-userdir-ldap"
 
 try:
-    from python_hosts.hosts import Hosts, HostsEntry
+    from python_hosts import Hosts, HostsEntry
 except ImportError:
-    add_source("ppa:canonical-bootstack/public")
     apt_update(fatal=True)
-    apt_install("python3-python-hosts", fatal=True)
-    from python_hosts.hosts import Hosts, HostsEntry
+    apt_install("python3-pip", fatal=True)
+    packages.pip_execute(["install", "python-hosts"])
+    from python_hosts import Hosts, HostsEntry
 
 
 class UserdirLdapError(Exception):
