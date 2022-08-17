@@ -2,7 +2,10 @@ PYTHON := /usr/bin/python3
 
 PROJECTPATH=$(dir $(realpath $(MAKEFILE_LIST)))
 ifndef CHARM_BUILD_DIR
-	CHARM_BUILD_DIR=${PROJECTPATH}.build
+	CHARM_BUILD_DIR=${PROJECTPATH}/build
+endif
+ifdef CONTAINER
+        BUILD_ARGS="--destructive-mode"
 endif
 METADATA_FILE="metadata.yaml"
 CHARM_NAME=$(shell cat ${PROJECTPATH}/${METADATA_FILE} | grep -E '^name:' | awk '{print $$2}')
@@ -28,7 +31,9 @@ clean:
 	@echo "Cleaning files"
 	@git clean -ffXd -e '!.idea'
 	@echo "Cleaning existing build"
-	@rm -rf ${CHARM_BUILD_DIR}/${CHARM_NAME}
+	@rm -rf ${CHARM_BUILD_DIR}
+	@rm -rf ${CHARM_NAME}.charm
+	@charmcraft clean
 
 submodules:
 	@echo "Cloning submodules"
@@ -39,14 +44,16 @@ submodules-update:
 	@git submodule update --init --recursive --remote --merge
 
 build: clean submodules-update
-	@echo "Building charm to base directory ${CHARM_BUILD_DIR}/${CHARM_NAME}"
+	@echo "Building charm to base directory ${CHARM_BUILD_DIR}/${CHARM_NAME}.charm"
 	@-git rev-parse --abbrev-ref HEAD > ./repo-info
 	@-git describe --always > ./version
+	@charmcraft -v pack ${BUILD_ARGS}
+	@bash -c ./rename.sh
 	@mkdir -p ${CHARM_BUILD_DIR}/${CHARM_NAME}
-	@cp -a ./* ${CHARM_BUILD_DIR}/${CHARM_NAME}
+	@unzip ${PROJECTPATH}/${CHARM_NAME}.charm -d ${CHARM_BUILD_DIR}/${CHARM_NAME}
 
 release: clean build
-	@echo "Charm is built at ${CHARM_BUILD_DIR}/${CHARM_NAME}"
+	@charmcraft upload ${PROJECTPATH}/${CHARM_NAME}.charm --release edge
 
 lint:
 	@echo "Running lint checks"
@@ -58,15 +65,15 @@ black:
 
 proof:
 	@echo "Running charm proof"
-	@charm proof
+	@-charm proof
 
 unittests: submodules-update
 	@echo "Running unit tests"
 	@tox -e unit
 
 functional: build
-	@echo "Executing functional tests in ${CHARM_BUILD_DIR}"
-	@CHARM_BUILD_DIR=${CHARM_BUILD_DIR} tox -e func
+	@echo "Executing functional tests"
+	@CHARM_LOCATION=${PROJECTPATH} tox -e func
 
 test: lint proof unittests functional
 	@echo "Charm ${CHARM_NAME} has been tested"

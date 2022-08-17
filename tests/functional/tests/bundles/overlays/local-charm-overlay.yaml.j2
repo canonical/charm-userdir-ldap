@@ -1,1 +1,5 @@
-# Empty file to work around https://github.com/openstack-charmers/zaza/issues/379
+applications:
+  ud-ldap-server:
+    charm: "{{ CHARM_LOCATION }}/{{ charm_name }}.charm"
+  ud-ldap-client:
+    charm: "{{ CHARM_LOCATION }}/{{ charm_name }}.charm"

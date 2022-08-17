@@ -1,5 +1,4 @@
 charm_name: userdir-ldap
-local_overlay_enabled: false
 tests:
   - tests.tests_userdir_ldap.UserdirLdapTest
 gate_bundles:
