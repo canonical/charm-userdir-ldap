@@ -8,16 +8,16 @@ gate_bundles:
 target_deploy_status:
   client:
     workload-status: active
-    workload-status-message: ''
+    workload-status-message-prefix: ''
   server:
     workload-status: active
-    workload-status-message: ''
+    workload-status-message-prefix: ''
   upstream:
     workload-status: active
-    workload-status-message: ''
+    workload-status-message-prefix: ''
   ud-ldap-client:
     workload-status: unknown
-    workload-status-message: ''
+    workload-status-message-prefix: ''
   ud-ldap-server:
     workload-status: unknown
-    workload-status-message: ''
+    workload-status-message-prefix: ''
