@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Functional tests."""
 
+import json
 import shutil
 import unittest
 from pathlib import Path
@@ -24,23 +25,29 @@ class UserdirLdapTest(unittest.TestCase):
         """Run once before tests start."""
         cls.model_name = model.get_juju_model()
         cls.test_config = lifecycle_utils.get_charm_config()
-        cls.server = "ud-ldap-server/0"
-        cls.client = "ud-ldap-client/0"
+        cls.server = "server/0"
+        cls.client = "client/0"
         cls.upstream = "upstream/0"
         cls.upstream_ip = model.get_app_ips("upstream")[0]
-        cls.server_ip = model.get_app_ips("ud-ldap-server")[0]
+        cls.server_ip = model.get_app_ips("server")[0]
+        cls.server_fqdn = model.run_on_unit(cls.server, "hostname -f")["Stdout"].strip()
         cls.tmp, priv_file, pub_file = gen_test_ssh_keys()
         model.scp_to_unit(cls.upstream, str(TESTDATA / "server0.lxd.tar.gz"), "/tmp")
         model.scp_to_unit(cls.upstream, str(pub_file), "/tmp/root.pubkey")
+        # Note that we have to copy server0.lxd to whatever FDQN of the server,
+        # since on server/0, the `ud-replicate` will try to pull the contents
+        # of a folder called /var/cache/userdir-ldap/hosts/{server_fqdn} from
+        # upstream/0 to server/0.
         script_body = (
             "sudo mkdir -p /var/cache/userdir-ldap/hosts; "
             "sudo tar xf /tmp/server0.lxd.tar.gz -C /var/cache/userdir-ldap/hosts ;"
             "cd /var/cache/userdir-ldap/hosts ; "
-            "sudo cp -r server0.lxd bootstack-template.internal; "
+            "sudo cp -r server0.lxd {}; "
             "sudo useradd sshdist ; "
             "sudo install -o sshdist -g sshdist -m 0700 -d /home/sshdist/.ssh ;"
             "sudo chown sshdist:sshdist -R /var/cache/userdir-ldap/hosts ;"
             "sudo install -o sshdist -g sshdist /tmp/root.pubkey /home/sshdist/.ssh/authorized_keys"  # noqa: E501
+            "".format(cls.server_fqdn)
         )
         model.run_on_unit(
             cls.upstream,
@@ -48,6 +55,15 @@ class UserdirLdapTest(unittest.TestCase):
         )
         model.block_until_all_units_idle()
         model.set_application_config("ud-ldap-server", {"userdb-ip": cls.upstream_ip})
+        # This is necessary and must match whatever FQDN of the server,
+        # because `ud-replicate` on client/0  will try to pull the contents of
+        # a folder called /var/cache/userdir-ldap/hosts/{cls.server_fqdn} on
+        # server/0 to client/0.
+        # And this will trigger config-changed and run setup_udldap() to create
+        # symlink between /var/cache/userdir-ldap/hosts/{server_fqdn} and
+        # /var/cache/userdir-ldap/hosts/{client_fqdn}. This is again necessary
+        # for `ud-replicate` run successfully on client/0.
+        model.set_application_config("ud-ldap-client", {"template-hostname": cls.server_fqdn})
         model.block_until_all_units_idle()
         with priv_file.open("r") as p:
             model.set_application_config("ud-ldap-server", {"root-id-rsa": p.read()})
@@ -63,7 +79,7 @@ class UserdirLdapTest(unittest.TestCase):
         model.block_until_all_units_idle()
         # block_until_file_has_contents doesn't like subord applications
         model.block_until_file_has_contents(
-            "server", "/var/lib/misc/server0.lxd/passwd.tdb", "foo"
+            "server", "/var/lib/misc/{}/passwd.tdb".format(cls.server_fqdn), "foo"
         )
         model.run_on_unit(cls.client, "sudo ud-replicate")
         model.block_until_all_units_idle()
@@ -102,7 +118,7 @@ class UserdirLdapTest(unittest.TestCase):
         self.assertTrue(self.server_ip in host_dict, "Expect server ip in /etc/hosts")
         self.assertEqual(
             sorted(host_dict[self.server_ip].names),
-            ["server0", "server0.lxd"],
+            ["server0", self.server_fqdn],
             "Expect server names in /etc/hosts",
         )
 
@@ -188,15 +204,26 @@ class UserdirLdapTest(unittest.TestCase):
 
     def test_rsync_userdata_local_overrides(self):
         """Test that overridden files can be provied to rsync_userdata."""
-        model.scp_to_unit("server/0", str(TESTDATA / "rsync_cfg.json"), "/tmp")
+        rsync_cfg = json.dumps({
+            "key_file": "/root/.ssh/id_rsa",
+            "dist_user": "sshdist",
+            "local_dir": "/var/cache/userdir-ldap/hosts",
+            "local_overrides": ["/tmp/test-keys"],
+            "host_dirs": [self.server_fqdn]
+        })
+        rsycn_cfg_path = "/tmp/rsync_cfg.json"
+        model.run_on_unit(
+            self.server,
+            "echo '{}' > {}".format(rsync_cfg, rsycn_cfg_path),
+        )
         model.run_on_unit(
             self.server,
             "mkdir -p /tmp/test-keys; echo foo > /tmp/test-keys/marker; "
-            "sudo /usr/local/sbin/rsync_userdata.py < /tmp/rsync_cfg.json",
+            "sudo /usr/local/sbin/rsync_userdata.py < {}".format(rsycn_cfg_path),
         )
         unit_res = model.run_on_unit(
             self.server,
-            "cat /var/cache/userdir-ldap/hosts/bootstack-template.internal/marker",
+            "cat /var/cache/userdir-ldap/hosts/{}/marker".format(self.server_fqdn),
         )
         self.assertEqual(unit_res["Stdout"].strip(), "foo")
 

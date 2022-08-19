@@ -37,7 +37,6 @@ applications:
     options:
       domain: "lxd"
       userdb-host: "userdb.internal"
-      template-hostname: "bootstack-template.internal"
 relations:
   - - "server"
     - "ud-ldap-server"
