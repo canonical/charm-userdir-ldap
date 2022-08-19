@@ -8,6 +8,7 @@ from pathlib import Path
 
 from python_hosts import HostsEntry
 
+from tests.utils import strict_run_on_unit
 from tests.shared.test_utils import gen_test_ssh_keys
 
 import zaza.charm_lifecycle.utils as lifecycle_utils
@@ -30,7 +31,7 @@ class UserdirLdapTest(unittest.TestCase):
         cls.upstream = "upstream/0"
         cls.upstream_ip = model.get_app_ips("upstream")[0]
         cls.server_ip = model.get_app_ips("server")[0]
-        cls.server_fqdn = model.run_on_unit(cls.server, "hostname -f")["Stdout"].strip()
+        cls.server_fqdn = strict_run_on_unit(cls.server, "hostname -f")["Stdout"].strip()
         cls.tmp, priv_file, pub_file = gen_test_ssh_keys()
         model.scp_to_unit(cls.upstream, str(TESTDATA / "server0.lxd.tar.gz"), "/tmp")
         model.scp_to_unit(cls.upstream, str(pub_file), "/tmp/root.pubkey")
@@ -49,7 +50,7 @@ class UserdirLdapTest(unittest.TestCase):
             "sudo install -o sshdist -g sshdist /tmp/root.pubkey /home/sshdist/.ssh/authorized_keys"  # noqa: E501
             "".format(cls.server_fqdn)
         )
-        model.run_on_unit(
+        strict_run_on_unit(
             cls.upstream,
             script_body,
         )
@@ -68,7 +69,7 @@ class UserdirLdapTest(unittest.TestCase):
         with priv_file.open("r") as p:
             model.set_application_config("ud-ldap-server", {"root-id-rsa": p.read()})
         model.block_until_all_units_idle()
-        model.run_on_unit(
+        strict_run_on_unit(
             cls.server,
             (
                 "sudo ud-replicate; "
@@ -81,7 +82,7 @@ class UserdirLdapTest(unittest.TestCase):
         model.block_until_file_has_contents(
             "server", "/var/lib/misc/{}/passwd.tdb".format(cls.server_fqdn), "foo"
         )
-        model.run_on_unit(cls.client, "sudo ud-replicate")
+        strict_run_on_unit(cls.client, "sudo ud-replicate")
         model.block_until_all_units_idle()
 
     @classmethod
@@ -91,7 +92,7 @@ class UserdirLdapTest(unittest.TestCase):
 
     def cat_unit(self, unit, path):
         """Run "cat <path>" on a remote unit."""
-        unit_res = model.run_on_unit(unit, "sudo cat {}".format(path))
+        unit_res = strict_run_on_unit(unit, "sudo cat {}".format(path))
         self.assertIn(
             "Stdout",
             unit_res,
@@ -162,7 +163,7 @@ class UserdirLdapTest(unittest.TestCase):
     def test_ud_replication(self):
         """Confirm login information of remote users on the server via replication."""
         for user_name in ("foo", "a.bc"):
-            getent_res = model.run_on_unit(
+            getent_res = strict_run_on_unit(
                 self.server, "getent passwd {}".format(user_name)
             )
             pwd_entry = getent_res["Stdout"].split(":")
@@ -171,18 +172,18 @@ class UserdirLdapTest(unittest.TestCase):
     def ssh_login(self, unit):
         """Confirm remote user login capability."""
         key_dir = "/etc/ssh/user-authorized-keys"
-        model.run_on_unit(
+        strict_run_on_unit(
             unit, "ssh-keyscan -t rsa localhost >> /root/.ssh/known_hosts"
         )
         for user_name in ("foo", "a.bc"):
-            model.run_on_unit(
+            strict_run_on_unit(
                 unit,
                 (
                     "sudo install -o {user_name} -g testgroup "
                     "/root/.ssh/id_rsa.pub {key_dir}/{user_name}"
                 ).format(key_dir=key_dir, user_name=user_name),
             )
-            ssh_res = model.run_on_unit(
+            ssh_res = strict_run_on_unit(
                 unit, "sudo ssh -l {} localhost whoami".format(user_name)
             )
             self.assertEqual(user_name, ssh_res["Stdout"].strip())
@@ -197,7 +198,7 @@ class UserdirLdapTest(unittest.TestCase):
 
     def test_rsync_userdata_leftover(self):
         """Confirm that the hosts.deleteme file has been removed from the server."""
-        unit_res = model.run_on_unit(
+        unit_res = strict_run_on_unit(
             self.server, "test -e /var/cache/userdir-ldap/hosts.deleteme || echo absent"
         )
         self.assertEqual(unit_res["Stdout"].strip(), "absent")
@@ -212,16 +213,16 @@ class UserdirLdapTest(unittest.TestCase):
             "host_dirs": [self.server_fqdn]
         })
         rsycn_cfg_path = "/tmp/rsync_cfg.json"
-        model.run_on_unit(
+        strict_run_on_unit(
             self.server,
             "echo '{}' > {}".format(rsync_cfg, rsycn_cfg_path),
         )
-        model.run_on_unit(
+        strict_run_on_unit(
             self.server,
             "mkdir -p /tmp/test-keys; echo foo > /tmp/test-keys/marker; "
             "sudo /usr/local/sbin/rsync_userdata.py < {}".format(rsycn_cfg_path),
         )
-        unit_res = model.run_on_unit(
+        unit_res = strict_run_on_unit(
             self.server,
             "cat /var/cache/userdir-ldap/hosts/{}/marker".format(self.server_fqdn),
         )
