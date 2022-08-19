@@ -1,23 +1,23 @@
 charm_name: userdir-ldap
-local_overlay_enabled: false
 tests:
   - tests.tests_userdir_ldap.UserdirLdapTest
 gate_bundles:
+  - jammy
   - focal
   - bionic
 target_deploy_status:
   client:
     workload-status: active
-    workload-status-message: ''
+    workload-status-message-prefix: ''
   server:
     workload-status: active
-    workload-status-message: ''
+    workload-status-message-prefix: ''
   upstream:
     workload-status: active
-    workload-status-message: ''
+    workload-status-message-prefix: ''
   ud-ldap-client:
     workload-status: unknown
-    workload-status-message: ''
+    workload-status-message-prefix: ''
   ud-ldap-server:
     workload-status: unknown
-    workload-status-message: ''
+    workload-status-message-prefix: ''

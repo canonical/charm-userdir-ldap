@@ -280,15 +280,9 @@ def udprovide_rel():
     utils.setup_rsync_userdata_cron()
 
 
-def install_cheetah():
-    """Installs the python-cheetah apt package."""
-    apt_install("python-cheetah")
-
-
 @hooks.hook("install", "install.real")
 def install():
     """Install and setup userdir-ldap and its dependencies."""
-    install_cheetah()
     setup_udldap()
     copy_user_keys()
     reconfigure_sshd()

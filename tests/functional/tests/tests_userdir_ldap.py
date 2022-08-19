@@ -86,7 +86,13 @@ class UserdirLdapTest(unittest.TestCase):
     def unit_host_dict(self, unit):
         """Convert remote unit's /etc/hosts file into an IP-to-HostEntry mapping."""
         hostsfile = self.cat_unit(unit, "/etc/hosts")
-        lines = filter(None, hostsfile.splitlines())
+        # Skip the comments and empty lines.
+        lines = []
+        for line in hostsfile.splitlines():
+            this_line = line.strip()
+            if not this_line or this_line.startswith("#"):
+                continue
+            lines.append(this_line)
         hosts = [HostsEntry.str_to_hostentry(e) for e in lines]
         return {h.address: h for h in hosts if h}
 
