@@ -2,17 +2,30 @@
 # Wrapper to deal with newer Ubuntu versions that don't have py2 installed
 # by default.
 
-declare -a DEPS=('apt' 'pip' 'yaml')
+RELEASE=$(grep DISTRIB_RELEASE= /etc/lsb-release | sed "s/DISTRIB_RELEASE=//")
 
 check_and_install() {
-    if ! dpkg -s "$1" 2>&1 > /dev/null; then
+    if ! dpkg -s "$1" > /dev/null 2>&1 ; then
         apt-get -y install "$1"
     fi
 }
 
-PYTHON="python"
+apt-get update
 
-check_and_install python-is-python2
+if [ "$(echo "${RELEASE} > 18.04" | bc)" -eq 1 ]; then
+    check_and_install python-is-python3
+    PYTHON="python3"
+else
+    check_and_install python
+    PYTHON="python"
+fi
+
+declare -a DEPS=(
+    "apt"
+    "pip"
+    "yaml"
+)
+
 for dep in ${DEPS[@]}; do
     check_and_install "${PYTHON}-${dep}"
 done
