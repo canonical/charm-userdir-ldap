@@ -16,3 +16,4 @@ requires:
   general-info:
     interface: juju-info
     scope: container
+series: []
