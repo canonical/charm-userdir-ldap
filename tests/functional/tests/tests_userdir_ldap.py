@@ -8,8 +8,8 @@ from pathlib import Path
 
 from python_hosts import HostsEntry
 
-from tests.utils import strict_run_on_unit
 from tests.shared.test_utils import gen_test_ssh_keys
+from tests.utils import strict_run_on_unit
 
 import zaza.charm_lifecycle.utils as lifecycle_utils
 from zaza import model
@@ -31,7 +31,9 @@ class UserdirLdapTest(unittest.TestCase):
         cls.upstream = "upstream/0"
         cls.upstream_ip = model.get_app_ips("upstream")[0]
         cls.server_ip = model.get_app_ips("server")[0]
-        cls.server_fqdn = strict_run_on_unit(cls.server, "hostname -f")["Stdout"].strip()
+        cls.server_fqdn = strict_run_on_unit(cls.server, "hostname -f")[
+            "Stdout"
+        ].strip()
         cls.tmp, priv_file, pub_file = gen_test_ssh_keys()
         model.scp_to_unit(cls.upstream, str(TESTDATA / "server0.lxd.tar.gz"), "/tmp")
         model.scp_to_unit(cls.upstream, str(pub_file), "/tmp/root.pubkey")
@@ -56,7 +58,10 @@ class UserdirLdapTest(unittest.TestCase):
         )
         model.block_until_all_units_idle()
         with priv_file.open("r") as p:
-            model.set_application_config("ud-ldap-server", {"root-id-rsa": p.read(), "userdb-ip": cls.upstream_ip})
+            model.set_application_config(
+                "ud-ldap-server",
+                {"root-id-rsa": p.read(), "userdb-ip": cls.upstream_ip},
+            )
         model.block_until_all_units_idle()
         # This is necessary and must match whatever FQDN of the server,
         # because `ud-replicate` on client/0  will try to pull the contents of
@@ -66,7 +71,9 @@ class UserdirLdapTest(unittest.TestCase):
         # symlink between /var/cache/userdir-ldap/hosts/{server_fqdn} and
         # /var/cache/userdir-ldap/hosts/{client_fqdn}. This is again necessary
         # for `ud-replicate` run successfully on client/0.
-        model.set_application_config("ud-ldap-client", {"template-hostname": cls.server_fqdn})
+        model.set_application_config(
+            "ud-ldap-client", {"template-hostname": cls.server_fqdn}
+        )
         model.block_until_all_units_idle()
         strict_run_on_unit(
             cls.server,
@@ -204,13 +211,15 @@ class UserdirLdapTest(unittest.TestCase):
 
     def test_rsync_userdata_local_overrides(self):
         """Test that overridden files can be provied to rsync_userdata."""
-        rsync_cfg = json.dumps({
-            "key_file": "/root/.ssh/id_rsa",
-            "dist_user": "sshdist",
-            "local_dir": "/var/cache/userdir-ldap/hosts",
-            "local_overrides": ["/tmp/test-keys"],
-            "host_dirs": [self.server_fqdn]
-        })
+        rsync_cfg = json.dumps(
+            {
+                "key_file": "/root/.ssh/id_rsa",
+                "dist_user": "sshdist",
+                "local_dir": "/var/cache/userdir-ldap/hosts",
+                "local_overrides": ["/tmp/test-keys"],
+                "host_dirs": [self.server_fqdn],
+            }
+        )
         rsycn_cfg_path = "/tmp/rsync_cfg.json"
         strict_run_on_unit(
             self.server,
