@@ -55,7 +55,9 @@ class UserdirLdapTest(unittest.TestCase):
             script_body,
         )
         model.block_until_all_units_idle()
-        model.set_application_config("ud-ldap-server", {"userdb-ip": cls.upstream_ip})
+        with priv_file.open("r") as p:
+            model.set_application_config("ud-ldap-server", {"root-id-rsa": p.read(), "userdb-ip": cls.upstream_ip})
+        model.block_until_all_units_idle()
         # This is necessary and must match whatever FQDN of the server,
         # because `ud-replicate` on client/0  will try to pull the contents of
         # a folder called /var/cache/userdir-ldap/hosts/{cls.server_fqdn} on
@@ -65,9 +67,6 @@ class UserdirLdapTest(unittest.TestCase):
         # /var/cache/userdir-ldap/hosts/{client_fqdn}. This is again necessary
         # for `ud-replicate` run successfully on client/0.
         model.set_application_config("ud-ldap-client", {"template-hostname": cls.server_fqdn})
-        model.block_until_all_units_idle()
-        with priv_file.open("r") as p:
-            model.set_application_config("ud-ldap-server", {"root-id-rsa": p.read()})
         model.block_until_all_units_idle()
         strict_run_on_unit(
             cls.server,
