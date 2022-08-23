@@ -261,11 +261,11 @@ def udprovide_rel():
     initial sync.
     """
     ud_units = set()
+    _, fqdn = utils.my_hostnames()
     log("udprovide relation_get: {}".format(relation_get()), level=DEBUG)
     for rid in relation_ids("udprovide"):
         for unit in related_units(relid=rid):
             pub_key = relation_get("pub_key", unit, rid)
-            fqdn = relation_get("fqdn", unit, rid)
             template_host = relation_get("template_host", unit, rid)
             host = template_host or fqdn
             if pub_key and host:
