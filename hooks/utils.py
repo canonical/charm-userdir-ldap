@@ -28,12 +28,12 @@ JUJU_SUDOERS_TMPL = "90-juju-userdir-ldap.j2"
 JUJU_SUDOERS = "/etc/sudoers.d/90-juju-userdir-ldap"
 
 try:
-    from python_hosts import Hosts, HostsEntry
+    from python_hosts.hosts import Hosts, HostsEntry
 except ImportError:
     apt_update(fatal=True)
     apt_install("python3-pip", fatal=True)
     packages.pip_execute(["install", "python-hosts"])
-    from python_hosts import Hosts, HostsEntry
+    from python_hosts.hosts import Hosts, HostsEntry
 
 
 class UserdirLdapError(Exception):

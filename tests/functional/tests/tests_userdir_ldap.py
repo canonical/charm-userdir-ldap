@@ -6,7 +6,7 @@ import shutil
 import unittest
 from pathlib import Path
 
-from python_hosts import HostsEntry
+from python_hosts.hosts import HostsEntry
 
 from tests.shared.test_utils import gen_test_ssh_keys
 from tests.utils import strict_run_on_unit
