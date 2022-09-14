@@ -27,6 +27,7 @@ help:
 clean:
 	@echo "Cleaning files"
 	@git clean -ffXd -e '!.idea'
+	@cd mod/charm-helpers && git clean -ffXd -e '!.idea'
 	@echo "Cleaning existing build"
 	@rm -rf ${CHARM_BUILD_DIR}
 	@rm -rf ${CHARM_NAME}.charm
