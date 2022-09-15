@@ -13,6 +13,7 @@ from charmhelpers.core.hookenv import (
     DEBUG,
     WARNING,
     config,
+    env_proxy_settings,
     local_unit,
     log,
     related_units,
@@ -32,7 +33,7 @@ try:
 except ImportError:
     apt_update(fatal=True)
     apt_install("python3-pip", fatal=True)
-    packages.pip_execute(["install", "python-hosts"])
+    packages.pip_install("python-hosts", proxy=env_proxy_settings(["http"]).get("http_proxy"))
     from python_hosts.hosts import Hosts, HostsEntry
 
 
