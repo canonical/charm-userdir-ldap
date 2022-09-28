@@ -33,12 +33,12 @@ try:
 except ImportError:
     apt_update(fatal=True)
     apt_install("python3-pip", fatal=True)
-    
+
     # Get proxy settings
     proxy_settings = env_proxy_settings(["http", "no_proxy"])
     http_proxy = proxy_settings.get("http_proxy")
     no_proxy = proxy_settings.get("no_proxy")
-    
+
     # Only pass http_proxy to pip_install if it is defined
     # and no_proxy does not include 'pypi.org'
     proxy = None
@@ -46,7 +46,7 @@ except ImportError:
         proxy = http_proxy
     if http_proxy and no_proxy and "pypi.org" not in no_proxy:
         proxy = http_proxy
-    
+
     if proxy:
         packages.pip_install("python-hosts", proxy=proxy)
     else:
