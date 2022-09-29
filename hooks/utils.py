@@ -13,6 +13,7 @@ from charmhelpers.core.hookenv import (
     DEBUG,
     WARNING,
     config,
+    env_proxy_settings,
     local_unit,
     log,
     related_units,
@@ -32,7 +33,25 @@ try:
 except ImportError:
     apt_update(fatal=True)
     apt_install("python3-pip", fatal=True)
-    packages.pip_execute(["install", "python-hosts"])
+
+    # Get proxy settings
+    proxy_settings = env_proxy_settings(["http", "no_proxy"])
+    http_proxy = proxy_settings.get("http_proxy")
+    no_proxy = proxy_settings.get("no_proxy")
+
+    # Only pass http_proxy to pip_install if it is defined
+    # and no_proxy does not include 'pypi.org'
+    proxy = None
+    if http_proxy and not no_proxy:
+        proxy = http_proxy
+    if http_proxy and no_proxy and "pypi.org" not in no_proxy:
+        proxy = http_proxy
+
+    if proxy:
+        packages.pip_install("python-hosts", proxy=proxy)
+    else:
+        packages.pip_install("python-hosts")
+
     from python_hosts.hosts import Hosts, HostsEntry
 
 
