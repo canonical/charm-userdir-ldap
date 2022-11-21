@@ -2,9 +2,15 @@
 
 import logging
 
+import tenacity
+
 from zaza import model
 
 
+@tenacity.retry(
+    stop=tenacity.stop_after_attempt(3),
+    wait=tenacity.wait_exponential(multiplier=1, min=2, max=10),
+)
 def strict_run_on_unit(*arg, **kwargs):
     """Stricted version of `zaza.model.run_on_unit`."""
     result = model.run_on_unit(*arg, **kwargs)
