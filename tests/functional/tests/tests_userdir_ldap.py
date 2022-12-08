@@ -209,6 +209,40 @@ class UserdirLdapTest(unittest.TestCase):
         )
         self.assertEqual(unit_res["Stdout"].strip(), "absent")
 
+    def test_rsync_userdata_leftover_rsync_fails(self):
+        """Confirm that the temp dirs are removed from the server when rsync fails.
+
+        Ensure that https://bugs.launchpad.net/charm-userdir-ldap/+bug/1998025
+        will not be reproduced.
+        """
+        unit_res = strict_run_on_unit(
+            self.server, "ls -l /var/cache/userdir-ldap/ | wc -l"
+        )
+        dir_number_before_failure = unit_res["Stdout"]
+        # Breaking connection with upstream userdb
+        model.set_application_config(
+            "ud-ldap-server", {"userdb-host": "no.such.host.sorry.ud-ldap"}
+        )
+        model.block_until_all_units_idle()
+        # Trigger rsync_userdata.py script
+        unit_res = model.run_on_unit(
+            self.server,
+            "/usr/local/sbin/rsync_userdata.py < /var/lib/misc/rsync_userdata.cfg",
+        )
+        self.assertEqual(unit_res["Code"], "1")
+        # Fix upstream userdb connection back
+        model.set_application_config(
+            "ud-ldap-server", {"userdb-host": "userdb.internal"}
+        )
+        model.block_until_all_units_idle()
+        # Check that no temp dir left
+        unit_res = strict_run_on_unit(
+            self.server, "ls -l /var/cache/userdir-ldap/ | wc -l"
+        )
+        self.assertEqual(unit_res["Code"], "0")
+        dir_number_after_failure = unit_res["Stdout"]
+        self.assertEqual(dir_number_before_failure, dir_number_after_failure)
+
     def test_rsync_userdata_local_overrides(self):
         """Test that overridden files can be provied to rsync_userdata."""
         rsync_cfg = json.dumps(
