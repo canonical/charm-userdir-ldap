@@ -21,9 +21,9 @@ This file is managed by Juju
 import json
 import shutil
 import sys
-import tempfile
 from pathlib import Path
 from subprocess import check_call
+from tempfile import TemporaryDirectory
 
 
 def rsync_ud(key_file, server_user, remote_dir, local_dir):
@@ -88,18 +88,19 @@ def main():
     cfg = json.load(sys.stdin)
     validate(cfg)
     local_dir = Path(cfg["local_dir"])
-    staging_dir = Path(tempfile.mkdtemp(dir=str(local_dir.parent)))
-    staging_dir.chmod(0o755)
-    host_dirs = cfg["host_dirs"]
-    print("Rsync host_dirs: {}".format(host_dirs))
-    local_overrides = cfg.get("local_overrides", [])
-    print("Copying in local_overrides: {}".format(local_overrides))
-    for host_dir in host_dirs:
-        rsync_ud(cfg["key_file"], cfg["dist_user"], host_dir, str(staging_dir))
-        for override_dir in local_overrides:
-            copyfiles(Path(override_dir), staging_dir / host_dir)
-    check_call(["chown", "-R", cfg["dist_user"], str(staging_dir)])
-    switch_dirs(staging_dir, local_dir)
+    with TemporaryDirectory(dir=str(local_dir.parent)) as staging_dir:
+        staging_dir = Path(staging_dir)
+        staging_dir.chmod(0o755)
+        host_dirs = cfg["host_dirs"]
+        print("Rsync host_dirs: {}".format(host_dirs))
+        local_overrides = cfg.get("local_overrides", [])
+        print("Copying in local_overrides: {}".format(local_overrides))
+        for host_dir in host_dirs:
+            rsync_ud(cfg["key_file"], cfg["dist_user"], host_dir, str(staging_dir))
+            for override_dir in local_overrides:
+                copyfiles(Path(override_dir), staging_dir / host_dir)
+        check_call(["chown", "-R", cfg["dist_user"], str(staging_dir)])
+        switch_dirs(staging_dir, local_dir)
 
 
 if __name__ == "__main__":
