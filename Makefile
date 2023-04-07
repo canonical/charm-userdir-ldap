@@ -41,7 +41,10 @@ submodules-update:
 	@echo "Pulling latest updates for submodules"
 	@git submodule update --init --recursive --remote --merge
 
-build: clean submodules-update
+bundled-packages-update:
+	@pip install --target bundled_packages/ --upgrade python-hosts
+
+build: clean submodules-update bundled-packages-update
 	@echo "Building charm to base directory ${CHARM_BUILD_DIR}/${CHARM_NAME}.charm"
 	@-git rev-parse --abbrev-ref HEAD > ./repo-info
 	@-git describe --always > ./version

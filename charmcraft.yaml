@@ -13,6 +13,8 @@ parts:
       - templates
       - files
       - mod
+      - bundled_packages
+      - requirements.txt
 
 bases:
   - build-on:
@@ -26,9 +28,5 @@ bases:
           - amd64
       - name: ubuntu
         channel: "20.04"
-        architectures:
-          - amd64
-      - name: ubuntu
-        channel: "18.04"
         architectures:
           - amd64

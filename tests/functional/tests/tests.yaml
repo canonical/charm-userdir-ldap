@@ -4,7 +4,6 @@ tests:
 gate_bundles:
   - jammy
   - focal
-  - bionic
 target_deploy_status:
   client:
     workload-status: active
