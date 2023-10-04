@@ -283,7 +283,7 @@ def update_hosts(userdb_host, userdb_ip):
 
 def update_ssh_known_hosts(hosts, ssh_dir="/root/.ssh"):
     """Scan for new host keys."""
-    if type(hosts) == str:
+    if isinstance(hosts, str):
         hosts = [hosts]
     if not os.path.exists(ssh_dir):
         os.makedirs(ssh_dir, mode=0o700)
