@@ -5,6 +5,7 @@ import json
 import shutil
 import unittest
 from pathlib import Path
+from time import sleep
 
 from python_hosts.hosts import HostsEntry
 
@@ -74,6 +75,8 @@ class UserdirLdapTest(unittest.TestCase):
         model.set_application_config(
             "ud-ldap-client", {"template-hostname": cls.server_fqdn}
         )
+        # This is necessary because the of the race condition
+        sleep(5)
         model.block_until_all_units_idle()
         strict_run_on_unit(
             cls.server,
@@ -83,6 +86,9 @@ class UserdirLdapTest(unittest.TestCase):
                 "< /var/lib/misc/rsync_userdata.cfg"
             ),
         )
+
+        # This is necessary because the of the race condition
+        sleep(10)
         model.block_until_all_units_idle()
         # block_until_file_has_contents doesn't like subord applications
         model.block_until_file_has_contents(
@@ -223,6 +229,8 @@ class UserdirLdapTest(unittest.TestCase):
         model.set_application_config(
             "ud-ldap-server", {"userdb-host": "no.such.host.sorry.ud-ldap"}
         )
+        # This is necessary because the of the race condition
+        sleep(5)
         model.block_until_all_units_idle()
         # Trigger rsync_userdata.py script
         unit_res = model.run_on_unit(
@@ -234,6 +242,8 @@ class UserdirLdapTest(unittest.TestCase):
         model.set_application_config(
             "ud-ldap-server", {"userdb-host": "userdb.internal"}
         )
+        # This is necessary because the of the race condition
+        sleep(5)
         model.block_until_all_units_idle()
         # Check that no temp dir left
         unit_res = strict_run_on_unit(
