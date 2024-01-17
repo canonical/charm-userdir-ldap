@@ -21,7 +21,7 @@ options:
     description: "Name of the userdb host"
   userdb-ip:
     type: string
-    default: "91.189.90.139"
+    default: "185.125.190.212"
     description: "IP address of the userdb host"
   userdb-known-hosts:
     type: string
