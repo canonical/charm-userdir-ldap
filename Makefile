@@ -44,14 +44,12 @@ submodules-update:
 bundled-packages-update:
 	@pip install --target bundled_packages/ --upgrade python-hosts
 
-build: clean submodules-update bundled-packages-update
+build: clean bundled-packages-update
 	@echo "Building charm to base directory ${CHARM_BUILD_DIR}/${CHARM_NAME}.charm"
 	@-git rev-parse --abbrev-ref HEAD > ./repo-info
 	@-git describe --always > ./version
 	@charmcraft -v pack
 	@bash -c ./rename.sh
-	@mkdir -p ${CHARM_BUILD_DIR}/${CHARM_NAME}
-	@unzip ${PROJECTPATH}/${CHARM_NAME}.charm -d ${CHARM_BUILD_DIR}/${CHARM_NAME}
 
 release: clean build
 	@charmcraft upload ${PROJECTPATH}/${CHARM_NAME}.charm --release edge
@@ -68,7 +66,7 @@ proof:
 	@echo "Running charm proof"
 	@charm proof
 
-unittests: submodules-update
+unittests:
 	@echo "Running unit tests"
 	@tox -e unit
 

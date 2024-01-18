@@ -30,12 +30,10 @@ applications:
       - "2"
   ud-ldap-server:
     options:
-      domain: "lxd"
       userdb-host: "userdb.internal"
       userdb-ip: "127.0.0.1"
   ud-ldap-client:
     options:
-      domain: "lxd"
       userdb-host: "userdb.internal"
 relations:
   - - "server"
