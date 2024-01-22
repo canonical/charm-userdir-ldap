@@ -17,6 +17,7 @@ from charmhelpers.core.hookenv import (
     log,
     related_units,
     relation_ids,
+    status_set,
 )
 from charmhelpers.core.host import adduser, user_exists, write_file
 
@@ -292,7 +293,17 @@ def update_ssh_known_hosts(hosts, ssh_dir="/root/.ssh"):
         for h in hosts:
             subprocess.check_call(["/usr/bin/ssh-keygen", "-R", h, "-f", known_hosts])
     with open(known_hosts, "a") as fp:
-        subprocess.check_call(["/usr/bin/ssh-keyscan", "-t", "rsa"] + hosts, stdout=fp)
+        try:
+            subprocess.check_call(
+                ["/usr/bin/ssh-keyscan", "-t", "rsa"] + hosts, stdout=fp
+            )
+            status_set("active", "")
+        except subprocess.CalledProcessError:
+            log("Unable to connect : {}".format(hosts), level=WARNING)
+            status_set(
+                "blocked",
+                "Provided userdb-ip is unreachable.",
+            )
 
 
 def install_sudoer_group(no_pass_groups, password_groups, **kwargs):
