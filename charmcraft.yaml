@@ -1,7 +1,16 @@
 type: charm
 
 parts:
+  python-hosts:
+    plugin: nil
+    build-packages:
+      - pip
+    override-prime: |
+      pip install --target bundled_packages/ --upgrade python-hosts
+
   charm:
+    after:
+      - python-hosts
     plugin: dump
     source: .
     prime:
@@ -13,7 +22,6 @@ parts:
       - templates
       - files
       - mod
-      - bundled_packages
       - requirements.txt
 
 bases:
