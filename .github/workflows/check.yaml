@@ -31,7 +31,7 @@ jobs:
         include:
           - juju-channel: "3.1/stable"
             command: "make functional"
-            runs-on: "['self-hosted', 'xlarge']"
+            runs-on: "['self-hosted', 'xlarge', 'jammy', 'x64']"
     with:
       command: ${{ matrix.command }}
       juju-channel: ${{ matrix.juju-channel }}
