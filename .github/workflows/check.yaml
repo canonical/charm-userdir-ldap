@@ -23,20 +23,11 @@ jobs:
       working-directory: .
 
   func:
-    uses: canonical/bootstack-actions/.github/workflows/func.yaml@v3
+    uses: canonical/bootstack-actions/.github/workflows/func.yaml@v2
     needs: lint-unit
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - juju-channel: "3.1/stable"
-            command: "make functional"
-            runs-on: "['self-hosted', 'xlarge']"
     with:
-      command: ${{ matrix.command }}
-      juju-channel: ${{ matrix.juju-channel }}
+      command: make functional
+      juju-channel: "3.4/stable"
       nested-containers: true
-      provider: "lxd"
       python-version: "3.10"
       timeout-minutes: 120
-      tox-version: "<4"
