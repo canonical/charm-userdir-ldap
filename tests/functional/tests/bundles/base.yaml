@@ -29,10 +29,12 @@ applications:
     to:
       - "2"
   ud-ldap-server:
+    charm: "userdir-ldap"
     options:
       userdb-host: "userdb.internal"
       userdb-ip: "127.0.0.1"
   ud-ldap-client:
+    charm: "userdir-ldap"
     options:
       userdb-host: "userdb.internal"
 relations:
