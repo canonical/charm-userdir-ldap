@@ -45,6 +45,10 @@ jobs:
         with:
           submodules: true
 
+      - name: check architecture
+        run: |
+          uname -m
+
       - name: Setup Python
         uses: actions/setup-python@v5
         with:
