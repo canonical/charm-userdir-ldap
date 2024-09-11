@@ -38,6 +38,7 @@ jobs:
       fail-fast: false
       matrix:
         runs-on: [[ubuntu-22.04], [Ubuntu_ARM64_4C_16G_01]]
+        test-command: ['tox -e func']
         juju-channel: ["3.4/stable"]
     steps:
 
@@ -74,7 +75,7 @@ jobs:
         run: charmcraft -v pack
 
       - name: Run tests
-        run: tox -e func
+        run: ${{ matrix.test-command }}
         env:
           TEST_JUJU3: "1"  # https://github.com/openstack-charmers/zaza/pull/653
           TEST_JUJU_CHANNEL: ${{ matrix.juju-channel }}
