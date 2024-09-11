@@ -38,7 +38,6 @@ jobs:
       fail-fast: false
       matrix:
         runs-on: [[ubuntu-22.04], [Ubuntu_ARM64_4C_16G_01]]
-        test-command: ['make functional']
         juju-channel: ["3.4/stable"]
     steps:
 
@@ -71,8 +70,11 @@ jobs:
             echo "TEST_MODEL_CONSTRAINTS=arch=arm64" >> "$GITHUB_ENV"
           fi
 
+      - name: Build the charm
+        run: charmcraft -v pack
+
       - name: Run tests
-        run: ${{ matrix.test-command }}
+        run: tox -e func
         env:
           TEST_JUJU3: "1"  # https://github.com/openstack-charmers/zaza/pull/653
           TEST_JUJU_CHANNEL: ${{ matrix.juju-channel }}

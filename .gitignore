@@ -26,10 +26,6 @@ htmlcov/
 # vi
 .*.swp
 
-# version data
-repo-info
-version
-
 # Python builds
 deb_dist/
 dist/
