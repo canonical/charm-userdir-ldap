@@ -80,7 +80,7 @@ jobs:
         env:
           TEST_JUJU3: "1"  # https://github.com/openstack-charmers/zaza/pull/653
           TEST_JUJU_CHANNEL: ${{ matrix.juju-channel }}
-          CHARM: "${{ github.workspace}}/${{ matrix.charm-file }}"
+          CHARM_PATH: "${{ github.workspace}}/${{ matrix.charm-file }}"
 
       # Save output for debugging
 
