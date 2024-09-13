@@ -81,8 +81,9 @@ jobs:
       fail-fast: false
       matrix:
         runs-on: [[ubuntu-22.04], [Ubuntu_ARM64_4C_16G_01]]
-        test-command: ['make functional']
+        test-command: ['tox -e func']
         juju-channel: ["3.4/stable"]
+        charm-file: ['userdir-ldap_ubuntu-22.04-amd64-arm64_ubuntu-20.04-amd64-arm64.charm']
     steps:
 
       - uses: actions/checkout@v4
@@ -114,11 +115,15 @@ jobs:
             echo "TEST_MODEL_CONSTRAINTS=arch=arm64" >> "$GITHUB_ENV"
           fi
 
+      - name: Build the charm
+        run: charmcraft -v pack
+
       - name: Run tests
         run: ${{ matrix.test-command }}
         env:
           TEST_JUJU3: "1"  # https://github.com/openstack-charmers/zaza/pull/653
           TEST_JUJU_CHANNEL: ${{ matrix.juju-channel }}
+          CHARM_PATH: "${{ github.workspace}}/${{ matrix.charm-file }}"
 
       # Save output for debugging
 
