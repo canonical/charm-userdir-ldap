@@ -121,7 +121,7 @@ jobs:
 
       - name: Run tests
         run: |
-          export CHARM_PATH="$(pwd)/$(find . -maxdepth 1 -mindepth 1 -name '*.charm')"
+          export CHARM_PATH="$(pwd)/$(ls | grep '\.charm$')"
           echo "$CHARM_PATH"
           ${{ matrix.test-command }}
         env:
