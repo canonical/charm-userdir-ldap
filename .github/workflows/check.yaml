@@ -121,10 +121,7 @@ jobs:
 
       - name: Run tests
         run: |
-          export CHARM_PATH=$GITHUB_WORKSPACE/*.charm
-          echo "$GITHUB_WORKSPACE"
-          pwd
-          ls
+          export CHARM_PATH="$(pwd)/$(ls | grep '\.charm')"
           echo "$CHARM_PATH"
           ${{ matrix.test-command }}
         env:
