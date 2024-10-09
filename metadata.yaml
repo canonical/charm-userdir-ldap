@@ -1,6 +1,7 @@
 name: userdir-ldap
 format: 2
 summary: Userdir-LDAP setup
+docs: https://discourse.charmhub.io/t/usedir-ldap-docs-index/15764
 maintainer: BootStack Charmers <bootstack-charmers@lists.canonical.com>
 tags:
   - ops
