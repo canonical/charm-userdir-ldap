@@ -27,21 +27,31 @@ parts:
 bases:
   - build-on:
     - name: ubuntu
+      channel: "20.04"
+      architectures:
+        - amd64
+        - arm64
+        - ppc64el
+        - s309x
+  run-on:
+    - name: ubuntu
+      channel: "24.04"
+      architectures:
+        - amd64
+        - arm64
+        - ppc64el
+        - s309x
+    - name: ubuntu
       channel: "22.04"
-      architectures: ["amd64", "arm64"]
-    run-on:
-      - name: ubuntu
-        channel: "24.04"
-        architectures:
-          - amd64
-          - arm64
-      - name: ubuntu
-        channel: "22.04"
-        architectures:
-          - amd64
-          - arm64
-      - name: ubuntu
-        channel: "20.04"
-        architectures:
-          - amd64
-          - arm64
+      architectures:
+        - amd64
+        - arm64
+        - ppc64el
+        - s309x
+    - name: ubuntu
+      channel: "20.04"
+      architectures:
+        - amd64
+        - arm64
+        - ppc64el
+        - s309x
