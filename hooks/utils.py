@@ -158,7 +158,7 @@ def create_ssh_keypair(id_file):
             "-t",
             "rsa",
             "-b",
-            "2048",
+            "4096",
             "-N",
             "",
             "-f",
