@@ -22,6 +22,7 @@ exclude = [
     "report",
     "docs",
     "mod",
+    "hooks/charmhelpers",
 ]
 select = ["E", "W", "F", "C", "N", "R", "D", "H"]
 # Ignore W503, E501 because using black creates errors with this
@@ -50,18 +51,19 @@ exclude = '''
     | report
     | docs
     | mod
+    | hooks/charmhelpers
 )/
 '''
 
 [tool.isort]
 profile = "black"
 line_length = 99
-skip_glob = [".eggs", ".git", ".tox", ".venv", ".build", "build", "lib", "report"]
+skip_glob = [".eggs", ".git", ".tox", ".venv", ".build", "build", "lib", "report", "hooks/charmhelpers"]
 
 [tool.pylint]
 max-line-length = 99
 disable = ["E1102"]
-ignore = ['.eggs', '.git', '.tox', '.venv', '.build', 'lib', 'report', 'tests', 'docs', 'mod']
+ignore = ['.eggs', '.git', '.tox', '.venv', '.build', 'lib', 'report', 'tests', 'docs', 'mod', "hooks/charmhelpers"]
 
 [tool.mypy]
 warn_unused_ignores = true
@@ -70,10 +72,10 @@ warn_unreachable = true
 disallow_untyped_defs = true
 ignore_missing_imports = true
 no_namespace_packages = true
-exclude = ['.eggs', '.git', '.tox', '.venv', '.build', 'lib', 'report', 'tests', 'docs', 'mod']
+exclude = ['.eggs', '.git', '.tox', '.venv', '.build', 'lib', 'report', 'tests', 'docs', 'mod', "hooks/charmhelpers"]
 
 [tool.codespell]
-skip = ".eggs,.tox,.git,.venv,venv,build,.build,lib,report,docs,mod,poetry.lock,htmlcov"
+skip = ".eggs,.tox,.git,.venv,venv,build,.build,lib,report,docs,mod,poetry.lock,htmlcov,hooks/charmhelpers"
 quiet-level = 3
 check-filenames = true
 ignore-words-list = "assertIn"
@@ -86,7 +88,7 @@ ignore_missing_imports = true
 [tool.coverage.run]
 relative_files = true
 source = ["."]
-omit = ["tests/**", "mod/**", "docs/**", "lib/**", "snap/**", "build/**", "setup.py"]
+omit = ["tests/**", "mod/**", "docs/**", "lib/**", "snap/**", "build/**", "setup.py", "hooks/charmhelpers/**"]
 
 [tool.coverage.report]
 fail_under = 60
