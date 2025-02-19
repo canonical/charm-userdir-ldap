@@ -1,3 +1,4 @@
+charmhelpers
 PyYAML
 python-hosts
 six

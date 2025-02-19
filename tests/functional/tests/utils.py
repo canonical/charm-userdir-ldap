@@ -23,9 +23,7 @@ def _check_result(result):
         raise Exception("Failed to get a result from run_on_unit command.")
     if result["Code"] != "0":
         logging.error(
-            "Failed on excecuting command on unit. Result code: {}".format(
-                result["Code"]
-            )
+            "Failed on excecuting command on unit. Result code: {}".format(result["Code"])
         )
         logging.error("Returned: \n{}".format(result))
         raise Exception("Command returned non-zero return code.")

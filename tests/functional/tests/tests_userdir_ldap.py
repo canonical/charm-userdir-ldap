@@ -32,9 +32,7 @@ class UserdirLdapTest(unittest.TestCase):
         cls.upstream = "upstream/0"
         cls.upstream_ip = model.get_app_ips("upstream")[0]
         cls.server_ip = model.get_app_ips("server")[0]
-        cls.server_fqdn = strict_run_on_unit(cls.server, "hostname -f")[
-            "Stdout"
-        ].strip()
+        cls.server_fqdn = strict_run_on_unit(cls.server, "hostname -f")["Stdout"].strip()
         cls.tmp, priv_file, pub_file = gen_test_ssh_keys()
         model.scp_to_unit(cls.upstream, str(TESTDATA / "server0.lxd.tar.gz"), "/tmp")
         model.scp_to_unit(cls.upstream, str(pub_file), "/tmp/root.pubkey")
@@ -50,7 +48,7 @@ class UserdirLdapTest(unittest.TestCase):
             "sudo useradd sshdist ; "
             "sudo install -o sshdist -g sshdist -m 0700 -d /home/sshdist/.ssh ;"
             "sudo chown sshdist:sshdist -R /var/cache/userdir-ldap/hosts ;"
-            "sudo install -o sshdist -g sshdist /tmp/root.pubkey /home/sshdist/.ssh/authorized_keys"  # noqa: E501
+            "sudo install -o sshdist -g sshdist /tmp/root.pubkey /home/sshdist/.ssh/authorized_keys"
             "".format(cls.server_fqdn)
         )
         strict_run_on_unit(
@@ -72,9 +70,7 @@ class UserdirLdapTest(unittest.TestCase):
         # symlink between /var/cache/userdir-ldap/hosts/{server_fqdn} and
         # /var/cache/userdir-ldap/hosts/{client_fqdn}. This is again necessary
         # for `ud-replicate` run successfully on client/0.
-        model.set_application_config(
-            "ud-ldap-client", {"template-hostname": cls.server_fqdn}
-        )
+        model.set_application_config("ud-ldap-client", {"template-hostname": cls.server_fqdn})
         # This is necessary because the of the race condition
         sleep(5)
         model.block_until_all_units_idle()
@@ -138,9 +134,7 @@ class UserdirLdapTest(unittest.TestCase):
     def test_etc_hosts_userdb(self):
         """Confirm the server's /etc/hosts settings for the upstream unit."""
         host_dict = self.unit_host_dict(self.server)
-        self.assertTrue(
-            self.upstream_ip in host_dict, "Expect upstream ip in /etc/hosts"
-        )
+        self.assertTrue(self.upstream_ip in host_dict, "Expect upstream ip in /etc/hosts")
         self.assertEqual(
             host_dict[self.upstream_ip].names,
             ["userdb.internal"],
@@ -161,9 +155,7 @@ class UserdirLdapTest(unittest.TestCase):
         pubkey = self.cat_unit(self.server, "/root/.ssh/id_rsa.pub")
         self.assertRegexpMatches(pubkey, "^ssh-rsa ")
         privkey = self.cat_unit(self.server, "/root/.ssh/id_rsa")
-        self.assertRegexpMatches(
-            privkey, "^-----BEGIN (RSA)|(OPENSSH) PRIVATE KEY-----"
-        )
+        self.assertRegexpMatches(privkey, "^-----BEGIN (RSA)|(OPENSSH) PRIVATE KEY-----")
         ubukey = self.cat_unit(self.server, "/etc/ssh/user-authorized-keys/ubuntu")
         self.assertRegex(ubukey, "^ssh-rsa ")
 
@@ -175,18 +167,14 @@ class UserdirLdapTest(unittest.TestCase):
     def test_ud_replication(self):
         """Confirm login information of remote users on the server via replication."""
         for user_name in ("foo", "a.bc"):
-            getent_res = strict_run_on_unit(
-                self.server, "getent passwd {}".format(user_name)
-            )
+            getent_res = strict_run_on_unit(self.server, "getent passwd {}".format(user_name))
             pwd_entry = getent_res["Stdout"].split(":")
             self.assertEqual(pwd_entry[0], user_name)
 
     def ssh_login(self, unit):
         """Confirm remote user login capability."""
         key_dir = "/etc/ssh/user-authorized-keys"
-        strict_run_on_unit(
-            unit, "ssh-keyscan -t rsa localhost >> /root/.ssh/known_hosts"
-        )
+        strict_run_on_unit(unit, "ssh-keyscan -t rsa localhost >> /root/.ssh/known_hosts")
         for user_name in ("foo", "a.bc"):
             strict_run_on_unit(
                 unit,
@@ -195,9 +183,7 @@ class UserdirLdapTest(unittest.TestCase):
                     "/root/.ssh/id_rsa.pub {key_dir}/{user_name}"
                 ).format(key_dir=key_dir, user_name=user_name),
             )
-            ssh_res = strict_run_on_unit(
-                unit, "sudo ssh -l {} localhost whoami".format(user_name)
-            )
+            ssh_res = strict_run_on_unit(unit, "sudo ssh -l {} localhost whoami".format(user_name))
             self.assertEqual(user_name, ssh_res["Stdout"].strip())
 
     def test_ssh_login_server(self):
@@ -221,9 +207,7 @@ class UserdirLdapTest(unittest.TestCase):
         Ensure that https://bugs.launchpad.net/charm-userdir-ldap/+bug/1998025
         will not be reproduced.
         """
-        unit_res = strict_run_on_unit(
-            self.server, "ls -l /var/cache/userdir-ldap/ | wc -l"
-        )
+        unit_res = strict_run_on_unit(self.server, "ls -l /var/cache/userdir-ldap/ | wc -l")
         dir_number_before_failure = unit_res["Stdout"]
         # Breaking connection with upstream userdb
         model.set_application_config(
@@ -239,16 +223,12 @@ class UserdirLdapTest(unittest.TestCase):
         )
         self.assertEqual(unit_res["Code"], "1")
         # Fix upstream userdb connection back
-        model.set_application_config(
-            "ud-ldap-server", {"userdb-host": "userdb.internal"}
-        )
+        model.set_application_config("ud-ldap-server", {"userdb-host": "userdb.internal"})
         # This is necessary because the of the race condition
         sleep(5)
         model.block_until_all_units_idle()
         # Check that no temp dir left
-        unit_res = strict_run_on_unit(
-            self.server, "ls -l /var/cache/userdir-ldap/ | wc -l"
-        )
+        unit_res = strict_run_on_unit(self.server, "ls -l /var/cache/userdir-ldap/ | wc -l")
         self.assertEqual(unit_res["Code"], "0")
         dir_number_after_failure = unit_res["Stdout"]
         self.assertEqual(dir_number_before_failure, dir_number_after_failure)
