@@ -1,5 +1,6 @@
+charmhelpers
 PyYAML
 python-hosts
 six
-coverage
+coverage[toml]
 jinja2

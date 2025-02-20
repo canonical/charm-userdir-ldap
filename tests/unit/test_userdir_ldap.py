@@ -125,9 +125,7 @@ class TestUserdirLdap(unittest.TestCase):
             owner = getpwuid(fstat.st_uid).pw_name
             group = getgrgid(fstat.st_gid).gr_name
             with patch("utils.JUJU_SUDOERS", new=tmp_file.name):
-                utils.install_sudoer_group(
-                    "no_pass", "pg1,pg2", owner=owner, group=group
-                )
+                utils.install_sudoer_group("no_pass", "pg1,pg2", owner=owner, group=group)
             sudoers = tmp_file.read().decode()
         assert "%pg1 ALL=(ALL) ALL" in sudoers
         assert "%pg2 ALL=(ALL) ALL" in sudoers

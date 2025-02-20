@@ -37,9 +37,7 @@ def rsync_ud(key_file, server_user, remote_dir, local_dir):
             "-r",
             "-p",
             "--delete",
-            "{}@userdb.internal:/var/cache/userdir-ldap/hosts/{}".format(
-                server_user, remote_dir
-            ),
+            "{}@userdb.internal:/var/cache/userdir-ldap/hosts/{}".format(server_user, remote_dir),
             local_dir,
         ]
     )
@@ -56,13 +54,9 @@ def validate(cfg):
     keys = set(cfg.keys())
     expected = {"host_dirs", "local_dir", "key_file", "dist_user"}
     if not expected <= keys:
-        raise RsyncUserdataError(
-            "Need {} keys in config, got: {}".format(expected, keys)
-        )
+        raise RsyncUserdataError("Need {} keys in config, got: {}".format(expected, keys))
     if not isinstance(cfg["host_dirs"], list):
-        raise RsyncUserdataError(
-            "Need a list for host_dirs, got: {}".format(cfg["host_dirs"])
-        )
+        raise RsyncUserdataError("Need a list for host_dirs, got: {}".format(cfg["host_dirs"]))
 
 
 def switch_dirs(src, dst):

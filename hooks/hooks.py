@@ -118,7 +118,7 @@ def reconfigure_sshd():
     safe_ciphers = "".join(config("ciphers").splitlines())
     safe_macs = "".join(config("macs").splitlines())
     conf = {
-        "AuthorizedKeysFile": "/etc/ssh/user-authorized-keys/%u /var/lib/misc/userkeys/%u",  # noqa: E501
+        "AuthorizedKeysFile": "/etc/ssh/user-authorized-keys/%u /var/lib/misc/userkeys/%u",
         "KexAlgorithms": safe_kex_algos,
         "Ciphers": safe_ciphers,
         "MACs": safe_macs,
@@ -207,8 +207,7 @@ def udconsume_data_rel():
     """
     db = unitdata.kv()
     addresses = set(
-        ingress_address(rid=u.rid, unit=u.unit)
-        for u in iter_units_for_relation_name("udconsume")
+        ingress_address(rid=u.rid, unit=u.unit) for u in iter_units_for_relation_name("udconsume")
     )
     if not addresses:
         log("No udconsume rels anymore")
@@ -219,9 +218,7 @@ def udconsume_data_rel():
         return
     userdb_ip = sorted(list(addresses))[0]  # Pick a deterministic address
     log(
-        "udconsume addresses: {}, picking {} for userdb-ip".format(
-            addresses, userdb_ip
-        ),
+        "udconsume addresses: {}, picking {} for userdb-ip".format(addresses, userdb_ip),
         level=DEBUG,
     )
     db.set("udconsume_upstream", userdb_ip)
