@@ -2,6 +2,7 @@ charm_name: userdir-ldap
 tests:
   - tests.tests_userdir_ldap.UserdirLdapTest
 gate_bundles:
+  - noble
   - jammy
   - focal
 target_deploy_status:
