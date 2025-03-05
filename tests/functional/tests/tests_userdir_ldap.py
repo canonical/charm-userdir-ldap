@@ -153,9 +153,9 @@ class UserdirLdapTest(unittest.TestCase):
     def test_ssh_keys(self):
         """Confirm creation of SSH keys on the server."""
         pubkey = self.cat_unit(self.server, "/root/.ssh/id_rsa.pub")
-        self.assertRegexpMatches(pubkey, "^ssh-rsa ")
+        self.assertRegex(pubkey, "^ssh-rsa ")
         privkey = self.cat_unit(self.server, "/root/.ssh/id_rsa")
-        self.assertRegexpMatches(privkey, "^-----BEGIN (RSA)|(OPENSSH) PRIVATE KEY-----")
+        self.assertRegex(privkey, "^-----BEGIN (RSA)|(OPENSSH) PRIVATE KEY-----")
         ubukey = self.cat_unit(self.server, "/etc/ssh/user-authorized-keys/ubuntu")
         self.assertRegex(ubukey, "^ssh-rsa ")
 
