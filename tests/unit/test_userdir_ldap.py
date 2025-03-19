@@ -10,6 +10,7 @@ from grp import getgrgid
 from pwd import getpwuid
 from unittest.mock import patch
 
+import utils
 from charmhelpers.core.host import write_file
 
 from tests.shared.test_utils import (
@@ -17,8 +18,6 @@ from tests.shared.test_utils import (
     effective_user,
     gen_test_ssh_keys,
 )
-
-import utils
 
 _path = os.path.dirname(os.path.abspath(__file__))
 _charmdir = os.path.dirname(os.path.dirname(_path))

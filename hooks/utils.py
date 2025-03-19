@@ -20,9 +20,7 @@ from charmhelpers.core.hookenv import (
     status_set,
 )
 from charmhelpers.core.host import adduser, user_exists, write_file
-
 from python_hosts.hosts import Hosts, HostsEntry
-
 
 HOSTS_FILE = "/etc/hosts"
 JUJU_SUDOERS_TMPL = "90-juju-userdir-ldap.j2"
@@ -31,8 +29,6 @@ JUJU_SUDOERS = "/etc/sudoers.d/90-juju-userdir-ldap"
 
 class UserdirLdapError(Exception):
     """Error in the userdir-ldap charm."""
-
-    pass
 
 
 def ensure_user(user, home):
@@ -50,7 +46,7 @@ def write_authkeys(username, ud_units):
     thus preventing shell access and instead limiting access to purely rsync.
 
     """
-    auth_file = "/etc/ssh/user-authorized-keys/{}".format(username)
+    auth_file = f"/etc/ssh/user-authorized-keys/{username}"
     tmpl = (
         'command="rsync --server --sender -pr . /var/cache/userdir-ldap/hosts/{host}" {pub_key}\n'
     )
@@ -73,18 +69,18 @@ def write_rsync_cfg(hosts):
     }
     try:
         # Load existing config if any
-        fp = open("/var/lib/misc/rsync_userdata.cfg", "r")
-        base_cfg.update(json.load(fp))
+        with open("/var/lib/misc/rsync_userdata.cfg", "r", encoding="utf-8") as fp:
+            base_cfg.update(json.load(fp))
     except FileNotFoundError:
         pass
     base_cfg["host_dirs"] = hosts
-    with open("/var/lib/misc/rsync_userdata.cfg", "w") as fp:
+    with open("/var/lib/misc/rsync_userdata.cfg", "w", encoding="utf-8") as fp:
         json.dump(base_cfg, fp)
 
 
 def run_rsync_userdata():
     """Run the rsync_userdata.py script."""
-    with open("/var/lib/misc/rsync_userdata.cfg") as fp:
+    with open("/var/lib/misc/rsync_userdata.cfg", encoding="utf-8") as fp:
         subprocess.call(["/usr/local/sbin/rsync_userdata.py"], stdin=fp)
 
 
@@ -106,7 +102,7 @@ def lxc_hostname(hostname):
             if relation:
                 hostname_lxc = hostname
                 hostname = relation[0][: relation[0].find("/")]
-    log("hostname: {}, hostname_lxc: {}".format(hostname, hostname_lxc), level=DEBUG)
+    log(f"hostname: {hostname}, hostname_lxc: {hostname_lxc}", level=DEBUG)
     return hostname, hostname_lxc
 
 
@@ -123,7 +119,7 @@ def my_hostnames():
     else:
         domain = dns_fqdn[dns_fqdn.find(".") + 1 :]  # noqa: E203
     if domain:
-        fqdn = "{}.{}".format(hostname, domain)
+        fqdn = f"{hostname}.{domain}"
     else:
         fqdn = hostname
     return hostname, fqdn
@@ -140,12 +136,12 @@ def get_default_gw_ip():
 
 def copy_files(charm_dir):
     """Copy files from the charm into the system."""
-    shutil.copyfile("%s/files/nsswitch.conf" % charm_dir, "/etc/nsswitch.conf")
-    shutil.copyfile("%s/files/snafflekeys" % charm_dir, "/usr/local/sbin/snafflekeys")
+    shutil.copyfile(f"{charm_dir}/files/nsswitch.conf", "/etc/nsswitch.conf")
+    shutil.copyfile(f"{charm_dir}/files/snafflekeys", "/usr/local/sbin/snafflekeys")
     os.chmod("/usr/local/sbin/snafflekeys", 0o755)
-    shutil.copy("%s/files/80-adm-sudoers" % charm_dir, "/etc/sudoers.d")
+    shutil.copy(f"{charm_dir}/files/80-adm-sudoers", "/etc/sudoers.d")
     os.chmod("/etc/sudoers.d/80-adm-sudoers", 0o440)
-    shutil.copyfile("%s/files/rsync_userdata.py" % charm_dir, "/usr/local/sbin/rsync_userdata.py")
+    shutil.copyfile(f"{charm_dir}/files/rsync_userdata.py", "/usr/local/sbin/rsync_userdata.py")
     os.chmod("/usr/local/sbin/rsync_userdata.py", 0o755)
 
 
@@ -179,14 +175,14 @@ def handle_local_ssh_keys(root_priv_key, root_ssh_dir="/root/.ssh"):
     if root_priv_key:
         if root_priv_key[-1:] != "\n":  # ssh-keygen requires a newline at the end
             root_priv_key += "\n"  # add one
-        write_file(path="{}/id_rsa".format(root_ssh_dir), content=root_priv_key, perms=0o600)
-    if not os.path.exists("{}/id_rsa".format(root_ssh_dir)):
-        create_ssh_keypair("{}/id_rsa".format(root_ssh_dir))
+        write_file(path=f"{root_ssh_dir}/id_rsa", content=root_priv_key, perms=0o600)
+    if not os.path.exists(f"{root_ssh_dir}/id_rsa"):
+        create_ssh_keypair(f"{root_ssh_dir}/id_rsa")
     # ensure matching pubkey, extract it from privkey which we know exists by now
     root_id_rsa_pub = subprocess.check_output(
-        ["/usr/bin/ssh-keygen", "-f", "{}/id_rsa".format(root_ssh_dir), "-y"]
+        ["/usr/bin/ssh-keygen", "-f", f"{root_ssh_dir}/id_rsa", "-y"]
     )
-    write_file(path="{}/id_rsa.pub".format(root_ssh_dir), content=root_id_rsa_pub, perms=0o644)
+    write_file(path=f"{root_ssh_dir}/id_rsa.pub", content=root_id_rsa_pub, perms=0o644)
 
 
 def cronsplay(string, interval=5):
@@ -201,23 +197,21 @@ def cronsplay(string, interval=5):
 
 def setup_udreplicate_cron():
     """Set up ud-replicate cron with a little variation."""
-    with open("/etc/cron.d/ud-replicate", "w") as f:
+    with open("/etc/cron.d/ud-replicate", "w", encoding="utf-8") as f:
         f.write(
             "# This file is managed by juju\n"
             "# userdir-ldap updates\n"
-            "{} * * * * root /usr/bin/ud-replicate\n".format(cronsplay(local_unit(), 15))
+            f"{cronsplay(local_unit(), 15)} * * * * root /usr/bin/ud-replicate\n"
         )
 
 
 def setup_rsync_userdata_cron():
     """Set up rsync_userdata.py cron with a little variation."""
-    with open("/etc/cron.d/rsync_userdata", "w") as f:
+    with open("/etc/cron.d/rsync_userdata", "w", encoding="utf-8") as f:
         f.write(
             "# This file is managed by juju\n"
-            "{} * * * * root [ -f /var/lib/misc/rsync_userdata.cfg ] && "
-            "/usr/local/sbin/rsync_userdata.py < /var/lib/misc/rsync_userdata.cfg \n".format(
-                cronsplay(local_unit(), 15)
-            )
+            f"{cronsplay(local_unit(), 15)} * * * * root [ -f /var/lib/misc/rsync_userdata.cfg ] "
+            "&& /usr/local/sbin/rsync_userdata.py < /var/lib/misc/rsync_userdata.cfg \n"
         )
 
 
@@ -235,7 +229,7 @@ def determine_userdb_ip():
     # Fallback: userdb ip from config
     userdb_ip = config("userdb-ip")
     if not userdb_ip:
-        log("Missing userdb-ip, got {}".format(userdb_ip), level=WARNING)
+        log(f"Missing userdb-ip, got {userdb_ip}", level=WARNING)
     return userdb_ip
 
 
@@ -247,7 +241,7 @@ def update_hosts(userdb_host, userdb_ip):
     works
 
     """
-    log("userdb_host: {} userdb_ip: {}".format(userdb_host, userdb_ip))
+    log(f"userdb_host: {userdb_host} userdb_ip: {userdb_ip}")
 
     hosts = Hosts(path=HOSTS_FILE)
 
@@ -268,7 +262,7 @@ def update_hosts(userdb_host, userdb_ip):
     # Write it out if anything changed
     if any([result["ipv4_count"], result["ipv6_count"], result["replaced_count"]]):
         log("Rewriting hosts file")
-        tempfile, backupfile = "{}.new".format(HOSTS_FILE), "{}.orig".format(HOSTS_FILE)
+        tempfile, backupfile = f"{HOSTS_FILE}.new", f"{HOSTS_FILE}.orig"
         hosts.write(tempfile)
         os.rename(HOSTS_FILE, backupfile)
         os.rename(tempfile, HOSTS_FILE)
@@ -280,16 +274,16 @@ def update_ssh_known_hosts(hosts, ssh_dir="/root/.ssh"):
         hosts = [hosts]
     if not os.path.exists(ssh_dir):
         os.makedirs(ssh_dir, mode=0o700)
-    known_hosts = "{}/known_hosts".format(ssh_dir)
+    known_hosts = f"{ssh_dir}/known_hosts"
     if os.path.exists(known_hosts):
         for h in hosts:
             subprocess.check_call(["/usr/bin/ssh-keygen", "-R", h, "-f", known_hosts])
-    with open(known_hosts, "a") as fp:
+    with open(known_hosts, "a", encoding="utf-8") as fp:
         try:
             subprocess.check_call(["/usr/bin/ssh-keyscan", "-t", "rsa"] + hosts, stdout=fp)
             status_set("active", "")
         except subprocess.CalledProcessError:
-            log("Unable to connect : {}".format(hosts), level=WARNING)
+            log(f"Unable to connect : {hosts}", level=WARNING)
             status_set(
                 "blocked",
                 "Provided userdb-ip is unreachable.",

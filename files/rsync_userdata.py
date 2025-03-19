@@ -33,11 +33,11 @@ def rsync_ud(key_file, server_user, remote_dir, local_dir):
             "rsync",
             "-q",
             "-e",
-            "ssh -i {}".format(key_file),
+            f"ssh -i {key_file}",
             "-r",
             "-p",
             "--delete",
-            "{}@userdb.internal:/var/cache/userdir-ldap/hosts/{}".format(server_user, remote_dir),
+            f"{server_user}@userdb.internal:/var/cache/userdir-ldap/hosts/{remote_dir}",
             local_dir,
         ]
     )
@@ -46,17 +46,15 @@ def rsync_ud(key_file, server_user, remote_dir, local_dir):
 class RsyncUserdataError(Exception):
     """Error in rsync_userdata."""
 
-    pass
-
 
 def validate(cfg):
     """Validate a configuration dictionary."""
     keys = set(cfg.keys())
     expected = {"host_dirs", "local_dir", "key_file", "dist_user"}
     if not expected <= keys:
-        raise RsyncUserdataError("Need {} keys in config, got: {}".format(expected, keys))
+        raise RsyncUserdataError(f"Need {expected} keys in config, got: {keys}")
     if not isinstance(cfg["host_dirs"], list):
-        raise RsyncUserdataError("Need a list for host_dirs, got: {}".format(cfg["host_dirs"]))
+        raise RsyncUserdataError(f"Need a list for host_dirs, got: {cfg['host_dirs']}")
 
 
 def switch_dirs(src, dst):
@@ -86,9 +84,9 @@ def main():
         staging_dir = Path(staging_dir)
         staging_dir.chmod(0o755)
         host_dirs = cfg["host_dirs"]
-        print("Rsync host_dirs: {}".format(host_dirs))
+        print(f"Rsync host_dirs: {host_dirs}")
         local_overrides = cfg.get("local_overrides", [])
-        print("Copying in local_overrides: {}".format(local_overrides))
+        print(f"Copying in local_overrides: {local_overrides}")
         for host_dir in host_dirs:
             rsync_ud(cfg["key_file"], cfg["dist_user"], host_dir, str(staging_dir))
             for override_dir in local_overrides:

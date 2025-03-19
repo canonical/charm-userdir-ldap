@@ -7,14 +7,12 @@ import unittest
 from pathlib import Path
 from time import sleep
 
+import zaza.charm_lifecycle.utils as lifecycle_utils
 from python_hosts.hosts import HostsEntry
+from zaza import model
 
 from tests.shared.test_utils import gen_test_ssh_keys
 from tests.utils import strict_run_on_unit
-
-import zaza.charm_lifecycle.utils as lifecycle_utils
-from zaza import model
-
 
 TESTDATA = Path(__file__).parent / "testdata"
 
