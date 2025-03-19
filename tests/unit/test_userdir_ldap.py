@@ -101,9 +101,10 @@ class TestUserdirLdap(unittest.TestCase):
         cron_times = utils.cronsplay("foobar", interval=10)
         self.assertEqual(cron_times, "3,13,23,33,43,53")
 
+    @patch("utils.socket.getfqdn", return_value="foohost")
     @patch("utils.config")
     @patch("os.uname")
-    def test_update_hosts(self, mock_uname, mock_config):
+    def test_update_hosts(self, mock_uname, mock_config, mock_getfqdn):
         """Test utils.update_hosts()."""
         mock_config.return_value = "foodom"
         mock_uname.return_value = ["dummy", "existing"]
