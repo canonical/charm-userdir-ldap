@@ -10,15 +10,10 @@ from grp import getgrgid
 from pwd import getpwuid
 from unittest.mock import patch
 
+import utils
 from charmhelpers.core.host import write_file
 
-from tests.shared.test_utils import (
-    effective_group,
-    effective_user,
-    gen_test_ssh_keys,
-)
-
-import utils
+from tests.shared.test_utils import effective_group, effective_user, gen_test_ssh_keys
 
 _path = os.path.dirname(os.path.abspath(__file__))
 _charmdir = os.path.dirname(os.path.dirname(_path))
@@ -106,9 +101,10 @@ class TestUserdirLdap(unittest.TestCase):
         cron_times = utils.cronsplay("foobar", interval=10)
         self.assertEqual(cron_times, "3,13,23,33,43,53")
 
+    @patch("utils.socket.getfqdn", return_value="foohost")
     @patch("utils.config")
     @patch("os.uname")
-    def test_update_hosts(self, mock_uname, mock_config):
+    def test_update_hosts(self, mock_uname, mock_config, mock_getfqdn):
         """Test utils.update_hosts()."""
         mock_config.return_value = "foodom"
         mock_uname.return_value = ["dummy", "existing"]
