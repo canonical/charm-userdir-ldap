@@ -23,6 +23,7 @@ from charmhelpers.core.hookenv import (
 )
 from charmhelpers.core.host import mkdir, service_reload
 from charmhelpers.fetch import apt_install, configure_sources
+from ssdlc import SSDLCEvent, log_ssdlc_event
 
 hooks = Hooks()
 
@@ -145,6 +146,7 @@ def reconfigure_sshd():
         os.rename(sshd_config, sshd_config + ".orig")
         os.rename(sshd_config + ".new", sshd_config)
         service_reload("ssh")
+        log_ssdlc_event(SSDLCEvent.SYS_RESTART, "ssh")
     else:
         os.unlink(sshd_config + ".new")
 

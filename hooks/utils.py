@@ -21,6 +21,7 @@ from charmhelpers.core.hookenv import (
 )
 from charmhelpers.core.host import adduser, user_exists, write_file
 from python_hosts.hosts import Hosts, HostsEntry
+from ssdlc import SSDLCEvent, log_ssdlc_event
 
 HOSTS_FILE = "/etc/hosts"
 JUJU_SUDOERS_TMPL = "90-juju-userdir-ldap.j2"
@@ -35,6 +36,7 @@ def ensure_user(user, home):
     """Create the user account if it does not already exist."""
     if not user_exists(user):
         adduser(user, home_dir=home, shell="/bin/false")
+        log_ssdlc_event(SSDLCEvent.USER_CREATED, user)
 
 
 def write_authkeys(username, ud_units):
@@ -306,6 +308,8 @@ def install_sudoer_group(no_pass_groups, password_groups, **kwargs):
         group=group,
         perms=0o440,
     )
+    all_groups = ",".join(filter(None, [no_pass_groups, password_groups]))
+    log_ssdlc_event(SSDLCEvent.USER_UPDATED, all_groups, "sudoers updated")
 
 
 def enable_pam_mkhomedir():
