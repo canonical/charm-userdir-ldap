@@ -19,6 +19,9 @@ APPID_PREFIX = "charm.userdir-ldap"
 class SSDLCEvent(str, Enum):
     """SSDLC security event types."""
 
+    # Authentication events [AUTHN]
+    AUTHN_TOKEN_CREATED = "authn_token_created"
+
     # System events [SYS]
     SYS_RESTART = "sys_restart"
 
@@ -28,12 +31,14 @@ class SSDLCEvent(str, Enum):
 
 
 _EVENT_LEVELS = {
+    SSDLCEvent.AUTHN_TOKEN_CREATED: "INFO",
     SSDLCEvent.SYS_RESTART: "WARN",
     SSDLCEvent.USER_CREATED: "WARN",
     SSDLCEvent.USER_UPDATED: "WARN",
 }
 
 _EVENT_DESCRIPTIONS = {
+    SSDLCEvent.AUTHN_TOKEN_CREATED: "SSH keypair created: %s",
     SSDLCEvent.SYS_RESTART: "Service %s restarted",
     SSDLCEvent.USER_CREATED: "User created: %s",
     SSDLCEvent.USER_UPDATED: "User updated: %s",

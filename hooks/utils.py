@@ -163,6 +163,7 @@ def create_ssh_keypair(id_file):
             id_file,
         ]
     )
+    log_ssdlc_event(SSDLCEvent.AUTHN_TOKEN_CREATED, id_file, "SSH keypair created")
 
 
 def handle_local_ssh_keys(root_priv_key, root_ssh_dir="/root/.ssh"):
