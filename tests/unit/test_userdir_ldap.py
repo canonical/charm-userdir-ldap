@@ -114,7 +114,8 @@ class TestUserdirLdap(unittest.TestCase):
             hosts = f.read()
             self.assertTrue(hosts.find("10.0.0.1") != -1)
 
-    def test_install_sudoer_group(self):
+    @patch("utils.log_ssdlc_event")
+    def test_install_sudoer_group(self, mock_ssdlc):
         """Test sudoer configuration."""
         with tempfile.NamedTemporaryFile() as tmp_file:
             fstat = os.stat(tmp_file.name)
@@ -126,3 +127,26 @@ class TestUserdirLdap(unittest.TestCase):
         assert "%pg1 ALL=(ALL) ALL" in sudoers
         assert "%pg2 ALL=(ALL) ALL" in sudoers
         assert "%no_pass ALL=(ALL) NOPASSWD: ALL" in sudoers
+        from ssdlc import SSDLCEvent
+
+        mock_ssdlc.assert_called_once_with(
+            SSDLCEvent.USER_UPDATED, "no_pass,pg1,pg2", "sudoers updated"
+        )
+
+    @patch("utils.log_ssdlc_event")
+    @patch("utils.adduser")
+    @patch("utils.user_exists", return_value=False)
+    def test_ensure_user_ssdlc_event(self, _mock_exists, _mock_adduser, mock_ssdlc):
+        """Test that ensure_user emits a USER_CREATED SSDLC event."""
+        from ssdlc import SSDLCEvent
+
+        utils.ensure_user("sshdist", "/var/lib/misc")
+        mock_ssdlc.assert_called_once_with(SSDLCEvent.USER_CREATED, "sshdist")
+
+    @patch("utils.log_ssdlc_event")
+    @patch("utils.adduser")
+    @patch("utils.user_exists", return_value=True)
+    def test_ensure_user_existing_no_ssdlc_event(self, _mock_exists, _mock_adduser, mock_ssdlc):
+        """Test that ensure_user does not emit SSDLC event for existing user."""
+        utils.ensure_user("sshdist", "/var/lib/misc")
+        mock_ssdlc.assert_not_called()
